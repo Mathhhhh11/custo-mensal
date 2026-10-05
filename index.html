@@ -130,6 +130,9 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .busca-tot{display:flex;justify-content:space-between;align-items:baseline;padding:2px 4px;color:var(--muted);font-size:14px}
 .busca-tot b{color:var(--ink);font-size:20px;font-family:var(--display)}
 .sim-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.rel-open svg{width:20px;height:20px;flex:none;color:var(--accent)}
+.rel-pre{font-family:inherit;white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5;background:var(--sunk);border-radius:12px;padding:12px 14px;margin:0;max-height:45vh;overflow:auto;color:var(--ink)}
+.btn.rel-wa{width:100%;background:#1f9d55;color:#fff}
 .sim-big{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .sim-big b{font-family:var(--display);font-size:24px;color:var(--pos)}
 .sim-metas{margin:10px 0 0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
@@ -500,6 +503,7 @@ function renderMes(){
     <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas</span><b class="num">${money(sai)}</b></div></div>
     <div><div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
+  <button class="row sim-card rel-open" id="rel-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg><span class="main"><span class="t">Relatório do mês</span><span class="s">Enviar no WhatsApp ou salvar</span></span><span class="chev" aria-hidden="true">›</span></button>
 
   ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
     ${formasRows.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;const lim=f&&+f.limite>0?+f.limite:0;
@@ -908,6 +912,7 @@ app.addEventListener("click",e=>{
   const el=t.closest("[data-edit-l]");if(el){const l=S.lanc.find(x=>x.id===el.dataset.editL);if(l)lancForm(l);return}
   if(t.closest("#busca-res [data-edit]")){const b=t.closest("[data-edit]");const[k,id]=b.dataset.edit.split(/:(.+)/);if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
   if(t.closest("#sim-open")){simSheet();return}
+  if(t.closest("#rel-open")){relatorioSheet();return}
   const mt=t.closest("[data-meta-tab]");if(mt){S.metaTab=mt.dataset.metaTab;LS.set("cm.metaTab",S.metaTab);render();return}
   const curMeta=()=>S.config.metas.find(x=>x.id===S.metaTab)||S.config.metas[0];
   if(t.closest("#meta-dep")){depSheet(curMeta());return}
@@ -945,6 +950,55 @@ app.addEventListener("change",e=>{
   else if(d.formaN){S.config.formas=S.config.formas.map(c=>c.id===d.formaN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.catN){S.config.categorias=S.config.categorias.map(c=>c.id===d.catN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
 });
+
+/* ---------- relatório ---------- */
+function relatorioTxt(ym){
+  const its=monthItems(ym);const sum=a=>a.reduce((x,i)=>x+i.valor,0);
+  const ent=sum(its.filter(i=>i.tipo==="receita")),desp=its.filter(i=>i.tipo!=="receita"),sai=sum(desp),saldo=ent-sai;
+  const L=[];const pct=(v,b)=>b?Math.round(v/b*100)+"%":"—";
+  L.push(`*Relatório · ${ymLabel(ym)}*`,"");
+  L.push(`Entradas: ${money(ent)}`,`Saídas: ${money(sai)}`,`*Disponível: ${money(saldo)}*`);
+  if(ent)L.push(`Renda usada: ${pct(sai,ent)}`);
+  const ant=addM(ym,-1),saiAnt=sum(monthItems(ant).filter(i=>i.tipo!=="receita"));
+  if(saiAnt){const d=sai-saiAnt;L.push(`Saídas vs ${MESES[+ant.slice(5)-1].toLowerCase()}: ${d>0?"+":d<0?"−":""}${money(Math.abs(d))} (${d>=0?"+":"−"}${Math.abs(Math.round(d/saiAnt*100))}%)`)}
+  const teto=+S.config.teto||0;
+  if(teto){const g=sum(desp.filter(isDiaADia));L.push("",`*Dia a dia:* ${money(g)} de ${money(teto)} · ${g>teto?"passou "+money(g-teto):"sobram "+money(teto-g)}`)}
+  const byC={};for(const i of desp){const k=i.cat||"outros";byC[k]=(byC[k]||0)+i.valor}
+  const cats=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
+  if(cats.length){L.push("","*Por categoria*");for(const[k,v]of cats)L.push(`• ${(catById(k)||{nome:"Outros"}).nome}: ${money(v)} (${pct(v,sai)})`)}
+  const byF={};for(const i of desp){const k=i.forma||"_";byF[k]=(byF[k]||0)+i.valor}
+  const fs=Object.entries(byF).sort((a,b)=>b[1]-a[1]);
+  if(fs.length){L.push("","*Por cartão e forma de pagamento*");
+    for(const[k,v]of fs){const f=formaById(k);const lim=f&&+f.limite>0?+f.limite:0;
+      L.push(`• ${f?f.nome:"Não informado"}: ${money(v)}${lim&&ym===ymOf(today())?` · limite disponível ${money(lim-limiteUsado(k))}`:""}`)}}
+  const top=desp.filter(i=>!i.fixo).sort((a,b)=>b.valor-a.valor).slice(0,5);
+  if(top.length){L.push("","*Maiores gastos*");for(const i of top)L.push(`• ${i.desc||"Sem descrição"}${i.parcela?" ("+i.parcela+")":""}: ${money(i.valor)}`)}
+  const fx=sum(desp.filter(i=>i.fixo)),pc=sum(desp.filter(i=>i.parcela&&!i.fixo));
+  L.push("","*Composição das saídas*",`• Contas fixas: ${money(fx)}`,`• Parcelas: ${money(pc)}`,`• Compras à vista: ${money(sai-fx-pc)}`);
+  const ms=(S.config.metas||[]).filter(m=>+m.meta>0);
+  if(ms.length){L.push("","*Metas*");for(const m of ms){const c=metaCalc(m);L.push(`• ${m.nome}: ${money(c.guardado)} de ${money(c.meta)} (${Math.floor(Math.min(100,c.guardado/c.meta*100))}%)${c.falta<=0?" · atingida":c.prev?" · previsão "+ymLabel(c.prev).toLowerCase():""}`)}}
+  L.push("",`_Gerado pelo Custo Mensal em ${new Date().toLocaleDateString("pt-BR")}_`);
+  return L.join("\n");
+}
+function relatorioSheet(){
+  const ym=S.month,txt=relatorioTxt(ym),name="relatorio-"+ym+".txt";
+  openSheet(`<h3>Relatório de ${esc(ymLabel(ym))}</h3>
+    <pre class="rel-pre">${esc(txt)}</pre>
+    <button class="btn rel-wa" id="rel-wa">Enviar no WhatsApp</button>
+    <div class="actions" style="width:100%"><button class="btn ghost" id="rel-save" style="flex:1">Salvar arquivo</button><button class="btn ghost" id="rel-copy" style="flex:1">Copiar texto</button></div>
+    <button class="btn ghost" id="rel-close" style="width:100%">Fechar</button>`,root=>{
+    root.addEventListener("click",async e=>{
+      if(e.target.closest("#rel-close")){closeSheet();return}
+      if(e.target.closest("#rel-wa")){window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");return}
+      if(e.target.closest("#rel-copy")){try{await navigator.clipboard.writeText(txt);toast("Relatório copiado")}catch(err){toast("Não deu para copiar neste aparelho")}return}
+      if(e.target.closest("#rel-save")){
+        const file=new File([txt.replace(/\*|_/g,"")],name,{type:"text/plain"});
+        if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(err){if(err&&err.name==="AbortError")return}}
+        const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();
+        setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Arquivo salvo");return}
+    });
+  });
+}
 
 /* ---------- export ---------- */
 async function exportCsv(all){
