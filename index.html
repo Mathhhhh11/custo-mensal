@@ -23,7 +23,8 @@ html{color-scheme:light} body{margin:0} [hidden]{display:none!important}
   --bg:#EDF0EE; --surface:#FFFFFF; --sunk:#F5F7F6; --ink:#14221F; --muted:#5E6E69; --line:#D6DDDA;
   --accent:#2350C8; --accent-soft:#E3EAFB; --accent-ink:#FFFFFF;
   --pos:#12784B; --neg:#BE3B27; --warn:#A86A12;
-  --c0:#2F66D6; --c1:#D27A22; --c2:#2C9466; --c3:#B4448A; --c4:#7655CC; --c5:#B8941C; --c6:#2393AD; --c7:#7F8791;
+  --c0:#2F66D6; --c1:#D27A22; --c2:#2C9466; --c3:#B4448A; --c4:#7655CC; --c5:#B8941C; --c6:#2393AD; --c7:#7F8791; --c8:#96603A;
+  --free:#C9D6D0;
   --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --r:14px;
@@ -32,13 +33,13 @@ html{color-scheme:light} body{margin:0} [hidden]{display:none!important}
   --bg:#0D1412; --surface:#16201D; --sunk:#111917; --ink:#E5EDEA; --muted:#93A39E; --line:#27342F;
   --accent:#7A9BFF; --accent-soft:#1D2742; --accent-ink:#0A1020;
   --pos:#45C389; --neg:#F27E69; --warn:#E3A84B;
-  --c0:#6E9BFF; --c1:#F0A15A; --c2:#4CC490; --c3:#E07BBE; --c4:#A88BFF; --c5:#E3C24F; --c6:#4FC3DD; --c7:#A3ABB5;
+  --c0:#6E9BFF; --c1:#F0A15A; --c2:#4CC490; --c3:#E07BBE; --c4:#A88BFF; --c5:#E3C24F; --c6:#4FC3DD; --c7:#A3ABB5; --c8:#C9926B; --free:#33433E;
   color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#0D1412; --surface:#16201D; --sunk:#111917; --ink:#E5EDEA; --muted:#93A39E; --line:#27342F;
   --accent:#7A9BFF; --accent-soft:#1D2742; --accent-ink:#0A1020;
   --pos:#45C389; --neg:#F27E69; --warn:#E3A84B;
-  --c0:#6E9BFF; --c1:#F0A15A; --c2:#4CC490; --c3:#E07BBE; --c4:#A88BFF; --c5:#E3C24F; --c6:#4FC3DD; --c7:#A3ABB5;
+  --c0:#6E9BFF; --c1:#F0A15A; --c2:#4CC490; --c3:#E07BBE; --c4:#A88BFF; --c5:#E3C24F; --c6:#4FC3DD; --c7:#A3ABB5; --c8:#C9926B; --free:#33433E;
   color-scheme:dark }
 *{box-sizing:border-box}
 html,body{background:var(--bg)}
@@ -71,6 +72,17 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .io span{display:block;font-size:12px;color:var(--muted);font-weight:600}
 .io b{font-size:17px}
 .io .in b{color:var(--pos)} .io .out b{color:var(--neg)}
+.pie{display:flex;flex-direction:column;gap:12px}
+.pie svg{width:180px;height:180px;display:block;margin:0 auto}
+.pie-s{cursor:pointer}.pie-s:hover{opacity:.85}
+.pie-c1{font-family:var(--display);font-size:22px;font-weight:800;fill:var(--ink)}
+.pie-c2{font-size:9.5px;fill:var(--muted);font-weight:600}
+.pie-leg{display:flex;flex-direction:column;min-width:0}
+.pie-l:first-child{border-top:0}
+.pie-l .chev{font-size:16px}
+.pie-l{display:grid;grid-template-columns:10px 1fr auto 40px;gap:10px;align-items:center;background:none;border:0;border-top:1px solid var(--line);padding:7px 2px;width:100%;text-align:left;font-size:13px;color:var(--ink);min-width:0}
+.pie-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pie-v{font-weight:700}.pie-p{color:var(--muted);text-align:right;font-size:12px}
 .meter{height:10px;border-radius:6px;background:var(--sunk);overflow:hidden;display:flex}
 .meter i{display:block;height:100%}
 .meter-cap{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
@@ -270,12 +282,30 @@ async function deleteLanc(id){S.lanc=S.lanc.filter(x=>x.id!==id);render();enqueu
 const allFormas=()=>[...S.config.cartoes.map(c=>({...c,cartao:true})),...S.config.formas];
 const formaById=id=>allFormas().find(f=>f.id===id);
 const catById=id=>S.config.categorias.find(c=>c.id===id);
-const catColor=id=>{const c=catById(id);return"var(--c"+((c?c.cor:7)%8)+")"};
+const catColor=id=>{const c=catById(id);return"var(--c"+((c?c.cor:7)%9)+")"};
 function compOf(data,formaId){
   const card=S.config.cartoes.find(c=>c.id===formaId);let ym=ymOf(data);
   const fech=card?+card.fechamento:0;
   if(fech&&+data.slice(8,10)>=fech)ym=addM(ym,1);
   return ym;
+}
+function pieHtml(cats,ent,sai){
+  const livre=Math.max(0,ent-sai),tot=cats.reduce((a,[,v])=>a+v,0)+livre;
+  if(!tot)return"";
+  const slices=[...cats.map(([k,v])=>({k,v,nome:(catById(k)||{nome:"Outros"}).nome,cor:catColor(k)})),...(livre?[{k:null,v:livre,nome:"Disponível",cor:"var(--free)"}]:[])];
+  const R=70,r=44,cx=80,cy=80;let a0=-Math.PI/2;
+  const pt=(a,rad)=>[cx+rad*Math.cos(a),cy+rad*Math.sin(a)];
+  const paths=slices.map(sl=>{const a1=a0+sl.v/tot*Math.PI*2;let d;
+    if(sl.v/tot>0.9999){d=`M${cx-R},${cy}a${R},${R} 0 1,0 ${2*R},0a${R},${R} 0 1,0 ${-2*R},0M${cx-r},${cy}a${r},${r} 0 1,1 ${2*r},0a${r},${r} 0 1,1 ${-2*r},0Z`}
+    else{const big=a1-a0>Math.PI?1:0,[x1,y1]=pt(a0,R),[x2,y2]=pt(a1,R),[x3,y3]=pt(a1,r),[x4,y4]=pt(a0,r);
+      d=`M${x1.toFixed(2)},${y1.toFixed(2)}A${R},${R} 0 ${big},1 ${x2.toFixed(2)},${y2.toFixed(2)}L${x3.toFixed(2)},${y3.toFixed(2)}A${r},${r} 0 ${big},0 ${x4.toFixed(2)},${y4.toFixed(2)}Z`}
+    a0=a1;const pct=(sl.v/tot*100).toFixed(1).replace(".",",");
+    return`<path d="${d}" fill="${sl.cor}" stroke="var(--surface)" stroke-width="2" stroke-linejoin="round" ${sl.k?`data-catopen="${esc(sl.k)}" class="pie-s"`:""}><title>${esc(sl.nome)}: ${money(sl.v)} (${pct}%)</title></path>`}).join("");
+  const usado=ent?Math.round(sai/ent*100):100;
+  const leg=slices.map(sl=>`<${sl.k?`button data-catopen="${esc(sl.k)}"`:"div"} class="pie-l"><span class="dot" style="background:${sl.cor}"></span><span class="pie-n">${esc(sl.nome)}</span><span class="pie-v num">${money(sl.v)}</span><span class="pie-p num">${(sl.v/tot*100).toFixed(0)}%</span></${sl.k?"button":"div"}>`).join("");
+  return`<div class="pie"><svg viewBox="0 0 160 160" role="img" aria-label="Divisão da renda do mês por categoria">${paths}
+    <text x="80" y="76" text-anchor="middle" class="pie-c1">${ent?usado+"%":"—"}</text><text x="80" y="95" text-anchor="middle" class="pie-c2">${ent?"da renda gasta":"sem renda"}</text></svg>
+    <div class="pie-leg">${leg}</div></div>`;
 }
 function limiteUsado(fid){
   const ym=ymOf(today());let u=0;
@@ -369,10 +399,10 @@ function renderMes(){
   </header>
   ${statusLine()}
   <section class="summary" aria-label="Resumo do mês">
+    ${pieHtml(cats,ent,sai)}
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
     <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas</span><b class="num">${money(sai)}</b></div></div>
-    <div><div class="meter" role="img" aria-label="Gasto por categoria em relação à renda">${meter}</div>
-    <div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
+    <div><div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
 
   ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
@@ -439,7 +469,7 @@ function renderAjustes(){
       <button class="del" data-del-forma="${esc(f.id)}" aria-label="Remover ${esc(f.nome)}">×</button></div>`).join("")}</div>
     <button class="add" id="addforma">+ Forma de pagamento</button></section>
   <section class="block"><h2>Categorias</h2>
-    <div class="list">${C.categorias.map(c=>`<div class="set-row cat"><button class="swatch" data-cor="${esc(c.id)}" style="background:var(--c${c.cor%8})" aria-label="Trocar cor"></button>
+    <div class="list">${C.categorias.map(c=>`<div class="set-row cat"><button class="swatch" data-cor="${esc(c.id)}" style="background:var(--c${c.cor%9})" aria-label="Trocar cor"></button>
       <input class="inp" id="cat-${esc(c.id)}" data-cat-n="${esc(c.id)}" value="${esc(c.nome)}" aria-label="Categoria">
       <button class="del" data-del-cat="${esc(c.id)}" aria-label="Remover ${esc(c.nome)}">×</button></div>`).join("")}</div>
     <button class="add" id="addcat">+ Categoria</button></section>
@@ -487,7 +517,7 @@ function closeSheet(){sheetRoot.innerHTML=""}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){S.returnCat=null;closeSheet()}});
 
 function chipsHtml(list,sel,name,withDot){
-  return list.map(x=>`<button type="button" class="chip ${x.id===sel?"on":""}" data-${name}="${esc(x.id)}">${withDot?`<span class="dot" style="background:var(--c${x.cor%8})"></span>`:""}${esc(x.nome)}</button>`).join("");
+  return list.map(x=>`<button type="button" class="chip ${x.id===sel?"on":""}" data-${name}="${esc(x.id)}">${withDot?`<span class="dot" style="background:var(--c${x.cor%9})"></span>`:""}${esc(x.nome)}</button>`).join("");
 }
 function lancForm(existing){
   const L=existing||{tipo:"despesa",valor:0,desc:"",cat:S.lastCat||S.config.categorias[0]?.id,forma:S.lastForma||allFormas()[0]?.id,
@@ -633,11 +663,11 @@ app.addEventListener("click",e=>{
   if(t.closest("#addfixo")){fixoForm(null);return}
   if(t.closest("#addcard")){S.config.cartoes=[...S.config.cartoes,{id:"c"+uid(),nome:"Novo cartão",fechamento:0}];saveConfig();return}
   if(t.closest("#addforma")){S.config.formas=[...S.config.formas,{id:"f"+uid(),nome:"Nova forma"}];saveConfig();return}
-  if(t.closest("#addcat")){const used=S.config.categorias.length;S.config.categorias=[...S.config.categorias,{id:"k"+uid(),nome:"Nova categoria",cor:used%8}];saveConfig();return}
+  if(t.closest("#addcat")){const used=S.config.categorias.length;S.config.categorias=[...S.config.categorias,{id:"k"+uid(),nome:"Nova categoria",cor:used%9}];saveConfig();return}
   const dc=t.closest("[data-del-card]");if(dc){S.config.cartoes=S.config.cartoes.filter(c=>c.id!==dc.dataset.delCard);saveConfig();return}
   const df=t.closest("[data-del-forma]");if(df){S.config.formas=S.config.formas.filter(c=>c.id!==df.dataset.delForma);saveConfig();return}
   const dk=t.closest("[data-del-cat]");if(dk){if(S.config.categorias.length<2)return;S.config.categorias=S.config.categorias.filter(c=>c.id!==dk.dataset.delCat);saveConfig();return}
-  const sw=t.closest("[data-cor]");if(sw){S.config.categorias=S.config.categorias.map(c=>c.id===sw.dataset.cor?{...c,cor:(c.cor+1)%8}:c);saveConfig();return}
+  const sw=t.closest("[data-cor]");if(sw){S.config.categorias=S.config.categorias.map(c=>c.id===sw.dataset.cor?{...c,cor:(c.cor+1)%9}:c);saveConfig();return}
   if(t.closest("#syncpill")){if(!S.api||S.sync==="badkey"){S.view="ajustes";LS.set("cm.view",S.view);render();window.scrollTo(0,0)}else scheduleFlush(0);return}
   if(t.closest("#api-save")){connectApi();return}
   if(t.closest("#api-off")){S.api=null;LS.set("cm.api",null);S.sync="idle";render();toast("Desconectado. Os dados continuam neste celular.");return}
