@@ -102,11 +102,15 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .dot{width:10px;height:10px;border-radius:50%;flex:none}
 .tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--sunk);color:var(--muted);margin-left:6px;vertical-align:1px}
 .tag.fix{background:var(--accent-soft);color:var(--accent)}
+.card-lim{background:var(--sunk);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.card-lim-row{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.card-lim-row b{font-size:18px}
 .chev{color:var(--muted);font-size:20px;line-height:1;margin-left:-4px}
 .cat-head{display:flex;align-items:center;gap:10px}
 .cat-head .dot{width:14px;height:14px}
 .cat-total{font-family:var(--display);font-size:32px;font-weight:800;letter-spacing:-.02em}
 .sheet .list{border-radius:12px}
+.sheet>*{flex-shrink:0}
 .bar.lim{margin-block:6px 4px}
 .negtxt{color:var(--neg)!important}
 .row .s.limtxt{white-space:normal}
@@ -412,7 +416,7 @@ function renderMes(){
         extra=`<span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
         <span class="s num limtxt ${d<0?"negtxt":""}">Disponível <b>${money(d)}</b> de ${money(lim)}</span>`}
       return`<button class="row ${on?"active":""}" data-filter="${esc(k)}"><span class="main"><span class="t">${esc(f?f.nome:"Não informado")}</span>
-      <span class="s">${lim?"Gasto no mês":(f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista")}${on?" · filtrando":""}</span>${extra}</span><span class="v num">${money(v)}</span></button>`}).join("")}
+      <span class="s">${lim?"Gasto no mês":(f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista")}${on?" · filtrando":""}</span>${extra}</span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
   </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite usado soma o que já caiu neste mês e todas as parcelas que ainda vão cair nesse cartão.</p>`:""}</section>`:""}
 
   ${cats.length?`<section class="block"><h2>Por categoria</h2><div class="list">
@@ -504,7 +508,51 @@ function catSheet(k){
     });
   });
 }
-function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;catSheet(c)}}
+function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
+function cardItemRow(i,extra){
+  const c=catById(i.cat);
+  const sub=[i.fixo?"Fixo":null,i.parcela?"Parcela "+i.parcela:null,c?c.nome:null,i.data&&!i.fixo&&(!i.parcela||i.parcela.startsWith("1/"))?new Date(i.data+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}):null,extra||null].filter(Boolean).join(" · ");
+  return`<button class="row" data-edit="${esc(i.key)}"><span class="dot" style="background:${catColor(i.cat)}"></span><span class="main"><span class="t">${esc(i.desc||"Sem descrição")}${i.alterado?`<span class="tag fix">ajustado</span>`:""}</span><span class="s">${esc(sub)}</span></span><span class="v num">${money(i.valor)}</span><span class="chev" aria-hidden="true">›</span></button>`;
+}
+function cardSheet(fid){
+  const f=fid==="_"?null:formaById(fid);
+  const items=monthItems(S.month).filter(i=>i.tipo!=="receita"&&(i.forma||"_")===fid);
+  const tot=items.reduce((a,i)=>a+i.valor,0);
+  const novas=items.filter(i=>!i.fixo&&!(i.parcela&&!i.parcela.startsWith("1/"))).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  const antigas=items.filter(i=>!i.fixo&&i.parcela&&!i.parcela.startsWith("1/")).sort((a,b)=>b.valor-a.valor);
+  const fix=items.filter(i=>i.fixo).sort((a,b)=>b.valor-a.valor);
+  // parcelas futuras (depois do mês exibido)
+  const fut=[];
+  for(const l of S.lanc){if((l.forma||"_")!==fid||l.tipo==="receita")continue;
+    const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data);let rest=0,cnt=0,last=null;
+    for(let i=0;i<n;i++){const m=addM(c0,i);if(m>S.month){rest+=parcelaValor(l.valor,n,i);cnt++;last=m}}
+    if(cnt)fut.push({l,rest,cnt,last})}
+  fut.sort((a,b)=>b.rest-a.rest);
+  const futTot=fut.reduce((a,x)=>a+x.rest,0);
+  const lim=f&&+f.limite>0?+f.limite:0;
+  let limHtml="";
+  if(lim){const u=limiteUsado(fid),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
+    limHtml=`<div class="card-lim"><div class="card-lim-row"><span>Limite disponível</span><b class="num ${d<0?"negtxt":""}">${money(d)}</b></div>
+    <span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
+    <div class="card-lim-row note"><span>Comprometido ${money(u)}</span><span>Limite ${money(lim)}</span></div></div>`}
+  const sec=(t,arr)=>arr.length?`<h2>${t} · ${money(arr.reduce((a,i)=>a+i.valor,0))}</h2><div class="list">${arr.map(i=>cardItemRow(i)).join("")}</div>`:"";
+  openSheet(`<div class="cat-head"><h3>${esc(f?f.nome:"Não informado")}</h3></div>
+    <div><div class="cat-total num">${money(tot)}</div><div class="note">gasto em ${ymLabel(S.month)} · ${items.length} ${items.length===1?"item":"itens"} · toque em um item para corrigir</div></div>
+    ${limHtml}
+    ${items.length?"":`<div class="empty"><b>Nada neste cartão em ${ymLabel(S.month)}</b></div>`}
+    ${sec("Compras do mês",novas)}
+    ${sec("Parcelas de compras anteriores",antigas)}
+    ${sec("Contas fixas",fix)}
+    ${fut.length?`<h2>Parcelas que ainda vão cair · ${money(futTot)}</h2><div class="list">${fut.map(x=>`<button class="row" data-edit="l:${esc(x.l.id)}"><span class="dot" style="background:${catColor(x.l.cat)}"></span><span class="main"><span class="t">${esc(x.l.desc||"Sem descrição")}</span><span class="s">${x.cnt} ${x.cnt>1?"parcelas":"parcela"} · até ${ymShort(x.last)}</span></span><span class="v num">${money(x.rest)}</span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</div>`:""}
+    <button class="btn ghost" id="cat-close" style="width:100%">Fechar</button>`,root=>{
+    root.addEventListener("click",e=>{
+      if(e.target.closest("#cat-close")){S.returnCat=null;closeSheet();return}
+      const b=e.target.closest("[data-edit]");if(!b)return;
+      const[t,id]=b.dataset.edit.split(/:(.+)/);S.returnCat="card:"+fid;
+      if(t==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const fx=S.config.fixos.find(x=>x.id===id);if(fx)fixoMonthSheet(fx)}
+    });
+  });
+}
 
 /* ---------- sheet (bottom drawer) ---------- */
 const sheetRoot=document.getElementById("sheet-root");
@@ -656,7 +704,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#next")){S.month=addM(S.month,1);S.filter=null;render();return}
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   const co=t.closest("[data-catopen]");if(co){catSheet(co.dataset.catopen);return}
-  const fl=t.closest("[data-filter]");if(fl){S.filter=S.filter===fl.dataset.filter?null:fl.dataset.filter;render();return}
+  const fl=t.closest("[data-filter]");if(fl){cardSheet(fl.dataset.filter);return}
   const op=t.closest("[data-open]");if(op){const[k,id]=op.dataset.open.split(/:(.+)/);
     if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
   const fx=t.closest("[data-fixo]");if(fx){const f=S.config.fixos.find(x=>x.id===fx.dataset.fixo);if(f)fixoForm(f);return}
