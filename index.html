@@ -95,6 +95,10 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .cat-head .dot{width:14px;height:14px}
 .cat-total{font-family:var(--display);font-size:32px;font-weight:800;letter-spacing:-.02em}
 .sheet .list{border-radius:12px}
+.bar.lim{margin-block:6px 4px}
+.negtxt{color:var(--neg)!important}
+.row .s.limtxt{white-space:normal}
+.set-row.lim{grid-template-columns:1fr 130px}
 .bar{display:block;height:6px;border-radius:4px;background:var(--sunk);margin-top:6px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:4px}
 .daylabel{font-size:12px;font-weight:700;color:var(--muted);padding:10px 14px 4px;background:var(--sunk);letter-spacing:.04em;text-transform:uppercase}
@@ -273,6 +277,17 @@ function compOf(data,formaId){
   if(fech&&+data.slice(8,10)>=fech)ym=addM(ym,1);
   return ym;
 }
+function limiteUsado(fid){
+  const ym=ymOf(today());let u=0;
+  for(const l of S.lanc){if(l.forma!==fid||l.tipo==="receita")continue;
+    const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data);
+    for(let i=0;i<n;i++){if(addM(c0,i)>=ym)u+=parcelaValor(l.valor,n,i)}}
+  for(const f of S.config.fixos){if(f.forma!==fid||f.tipo==="receita")continue;
+    if(f.desde&&ym<f.desde)continue;if(f.ate&&ym>f.ate)continue;
+    const ov=f.excecoes&&Object.prototype.hasOwnProperty.call(f.excecoes,ym)?f.excecoes[ym]:undefined;
+    if(ov===null)continue;u+=ov!==undefined?ov:f.valor}
+  return u;
+}
 function parcelaValor(total,n,i){const base=Math.floor(total/n);return i===0?total-base*(n-1):base}
 function monthItems(ym){
   const out=[];
@@ -320,6 +335,7 @@ function renderMes(){
   // by forma
   const byF={};for(const i of desp){const k=i.forma||"_";byF[k]=(byF[k]||0)+i.valor}
   const formas=Object.entries(byF).sort((a,b)=>b[1]-a[1]);
+  const formasRows=[...formas,...allFormas().filter(f=>+f.limite>0&&!(f.id in byF)).map(f=>[f.id,0])];
   // by cat
   const byC={};for(const i of desp){const k=i.cat||"outros";byC[k]=(byC[k]||0)+i.valor}
   const cats=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
@@ -359,11 +375,15 @@ function renderMes(){
     <div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
 
-  ${formas.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
-    ${formas.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;
+  ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
+    ${formasRows.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;const lim=f&&+f.limite>0?+f.limite:0;
+      let extra="";
+      if(lim){const u=limiteUsado(k),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
+        extra=`<span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
+        <span class="s num limtxt ${d<0?"negtxt":""}">Disponível <b>${money(d)}</b> de ${money(lim)}</span>`}
       return`<button class="row ${on?"active":""}" data-filter="${esc(k)}"><span class="main"><span class="t">${esc(f?f.nome:"Não informado")}</span>
-      <span class="s">${f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista"}${on?" · filtrando":""}</span></span><span class="v num">${money(v)}</span></button>`}).join("")}
-  </div></section>`:""}
+      <span class="s">${lim?"Gasto no mês":(f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista")}${on?" · filtrando":""}</span>${extra}</span><span class="v num">${money(v)}</span></button>`}).join("")}
+  </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite usado soma o que já caiu neste mês e todas as parcelas que ainda vão cair nesse cartão.</p>`:""}</section>`:""}
 
   ${cats.length?`<section class="block"><h2>Por categoria</h2><div class="list">
     ${cats.map(([k,v])=>{const c=catById(k);return`<button class="row" data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="main"><span class="t">${esc(c?c.nome:"Outros")}</span>
@@ -410,6 +430,10 @@ function renderAjustes(){
       <input class="inp num" id="card-f-${esc(c.id)}" data-card-f="${esc(c.id)}" value="${c.fechamento||""}" inputmode="numeric" placeholder="Fecha" aria-label="Dia de fechamento">
       <button class="del" data-del-card="${esc(c.id)}" aria-label="Remover ${esc(c.nome)}">×</button></div>`).join("")||`<div class="empty">Nenhum cartão cadastrado.</div>`}</div>
     <button class="add" id="addcard">+ Cartão</button></section>
+  <section class="block"><h2>Limites de crédito</h2>
+    <p class="note">O app desconta deste limite as compras e parcelas em aberto. Deixe em branco onde não houver limite.</p>
+    <div class="list">${allFormas().map(f=>`<div class="set-row lim"><span>${esc(f.nome)}</span>
+      <input class="inp num" id="lim-${esc(f.id)}" data-lim="${esc(f.id)}" value="${esc(centsToInput(+f.limite||0))}" inputmode="decimal" placeholder="Sem limite" aria-label="Limite de ${esc(f.nome)}"></div>`).join("")}</div></section>
   <section class="block"><h2>Outras formas de pagamento</h2>
     <div class="list">${C.formas.map(f=>`<div class="set-row forma"><input class="inp" id="forma-${esc(f.id)}" data-forma-n="${esc(f.id)}" value="${esc(f.nome)}" aria-label="Forma de pagamento">
       <button class="del" data-del-forma="${esc(f.id)}" aria-label="Remover ${esc(f.nome)}">×</button></div>`).join("")}</div>
@@ -510,7 +534,7 @@ function lancForm(existing){
     };
     paintSeg("#f-tipo",st.tipo);fillComp();update();
     $("#f-tipo").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||b.dataset.v===st.tipo)return;st.tipo=b.dataset.v;
-      const contaEntrada=allFormas().find(f=>f.entrada)||allFormas().find(f=>/neon/i.test(f.nome));
+      const salFx=S.config.fixos.find(f=>f.tipo==="receita"&&f.forma);const contaEntrada=(salFx&&formaById(salFx.forma))||allFormas().find(f=>f.entrada)||allFormas().find(f=>/neon/i.test(f.nome));
       const alvo=st.tipo==="receita"?(contaEntrada&&contaEntrada.id):(S.lastForma||allFormas()[0]?.id);
       if(alvo&&!existing){st.forma=alvo;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c.dataset.forma===alvo));compManual=null;fillComp()}
       update()});
@@ -624,6 +648,7 @@ app.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
   if(d.cardN){S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.cardF){const v=Math.max(0,Math.min(31,parseInt(t.value,10)||0));S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardF?{...c,fechamento:v}:c);saveConfig()}
+  else if(d.lim){const v=toCents(t.value);const fx=c=>c.id===d.lim?{...c,limite:v}:c;S.config.cartoes=S.config.cartoes.map(fx);S.config.formas=S.config.formas.map(fx);saveConfig()}
   else if(d.formaN){S.config.formas=S.config.formas.map(c=>c.id===d.formaN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.catN){S.config.categorias=S.config.categorias.map(c=>c.id===d.catN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
 });
