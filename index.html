@@ -105,6 +105,16 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .card-lim{background:var(--sunk);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
 .card-lim-row{display:flex;justify-content:space-between;gap:8px;font-size:14px}
 .card-lim-row b{font-size:18px}
+.teto{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;text-align:left;width:100%;color:var(--ink)}
+.teto-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.teto-lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.teto-val{font-size:14px;color:var(--muted)}.teto-val b{color:var(--ink);font-size:17px}
+.teto-bar{position:relative;display:block;height:10px;border-radius:6px;background:var(--sunk);overflow:hidden}
+.teto-bar i{display:block;height:100%;border-radius:6px;background:var(--pos)}
+.teto-bar em{position:absolute;top:0;bottom:0;width:2px;background:var(--surface)}
+.teto.warn .teto-bar i{background:var(--warn)}.teto.over .teto-bar i{background:var(--neg)}
+.teto-msg{font-size:13px;color:var(--muted)}
+.teto.warn .teto-msg{color:var(--warn);font-weight:700}.teto.over .teto-msg{color:var(--neg);font-weight:700}
 .chev{color:var(--muted);font-size:20px;line-height:1;margin-left:-4px}
 .cat-head{display:flex;align-items:center;gap:10px}
 .cat-head .dot{width:14px;height:14px}
@@ -229,7 +239,8 @@ function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
   categorias:Array.isArray(c.categorias)&&c.categorias.length?c.categorias:DEFAULT_CONFIG.categorias,
   cartoes:Array.isArray(c.cartoes)?c.cartoes:[],
   formas:Array.isArray(c.formas)?c.formas:DEFAULT_CONFIG.formas,
-  fixos:Array.isArray(c.fixos)?c.fixos:[]}}
+  fixos:Array.isArray(c.fixos)?c.fixos:[],
+  teto:c.teto===undefined||c.teto===null?175000:Math.max(0,+c.teto||0)}}
 function loadCache(){
   const c=LS.get("cm.config",null);if(c)S.config=normalize(c);
   S.lanc=LS.get("cm.lanc",[]);S.queue=LS.get("cm.queue",[]);S.api=LS.get("cm.api",null);
@@ -292,6 +303,37 @@ function compOf(data,formaId){
   const fech=card?+card.fechamento:0;
   if(fech&&+data.slice(8,10)>=fech)ym=addM(ym,1);
   return ym;
+}
+const isDiaADia=i=>i.tipo!=="receita"&&!i.fixo&&!i.parcela;
+function tetoHtml(items){
+  const teto=+S.config.teto||0;if(!teto)return"";
+  const gasto=items.filter(isDiaADia).reduce((a,i)=>a+i.valor,0);
+  const resta=teto-gasto,pct=gasto/teto*100;
+  const st=pct>=100?"over":pct>=80?"warn":"ok";
+  let extra="";
+  const hoje=today();
+  if(S.month===ymOf(hoje)&&resta>0){const [y,m,d]=hoje.split("-").map(Number);const fim=new Date(y,m,0).getDate();const dias=fim-d+1;extra=` · ${money(Math.floor(resta/dias))} por dia até o fim do mês`}
+  const msg=st==="over"?`Você passou ${money(-resta)} do teto`:st==="warn"?`Atenção: ${Math.round(pct)}% do teto usado`:`Restam ${money(resta)}`;
+  return`<button class="teto ${st}" id="teto-open" aria-label="Teto do dia a dia: ${esc(msg)}">
+    <span class="teto-top"><span class="teto-lbl">Dia a dia</span><span class="teto-val num"><b>${money(gasto)}</b> de ${money(teto)}</span></span>
+    <span class="teto-bar"><i style="width:${Math.min(100,pct).toFixed(1)}%"></i><em style="left:80%"></em></span>
+    <span class="teto-msg num">${st!=="ok"?"⚠ ":""}${esc(msg)}${extra}</span></button>`;
+}
+function tetoSheet(){
+  const items=monthItems(S.month).filter(isDiaADia).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  const teto=+S.config.teto||0,gasto=items.reduce((a,i)=>a+i.valor,0);
+  openSheet(`<div class="cat-head"><h3>Dia a dia</h3></div>
+    <div><div class="cat-total num">${money(gasto)}</div><div class="note">de ${money(teto)} em ${ymLabel(S.month)} · compras à vista, sem contas fixas e parcelas</div></div>
+    ${items.length?`<div class="list">${items.map(i=>cardItemRow(i,(formaById(i.forma)||{}).nome)).join("")}</div>`:`<div class="empty"><b>Nenhuma compra do dia a dia em ${ymLabel(S.month)}</b></div>`}
+    <p class="note">Para mudar o valor do teto, vá em Ajustes.</p>
+    <button class="btn ghost" id="cat-close" style="width:100%">Fechar</button>`,root=>{
+    root.addEventListener("click",e=>{
+      if(e.target.closest("#cat-close")){S.returnCat=null;closeSheet();return}
+      const b=e.target.closest("[data-edit]");if(!b)return;
+      const[t,id]=b.dataset.edit.split(/:(.+)/);S.returnCat="teto:";
+      const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l);
+    });
+  });
 }
 function pieHtml(cats,ent,sai){
   const livre=Math.max(0,ent-sai),tot=cats.reduce((a,[,v])=>a+v,0)+livre;
@@ -402,6 +444,7 @@ function renderMes(){
     <button class="iconbtn" id="next" aria-label="Próximo mês">›</button>
   </header>
   ${statusLine()}
+  ${tetoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
     ${pieHtml(cats,ent,sai)}
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
@@ -464,6 +507,9 @@ function renderAjustes(){
       <input class="inp num" id="card-f-${esc(c.id)}" data-card-f="${esc(c.id)}" value="${c.fechamento||""}" inputmode="numeric" placeholder="Fecha" aria-label="Dia de fechamento">
       <button class="del" data-del-card="${esc(c.id)}" aria-label="Remover ${esc(c.nome)}">×</button></div>`).join("")||`<div class="empty">Nenhum cartão cadastrado.</div>`}</div>
     <button class="add" id="addcard">+ Cartão</button></section>
+  <section class="block"><h2>Teto do dia a dia</h2>
+    <p class="note">Quanto você quer gastar por mês com compras à vista (fora contas fixas e parcelas). Deixe 0 para esconder a barra.</p>
+    <div class="list"><div class="set-row lim"><span>Teto mensal</span><input class="inp num" id="teto-val" data-teto="1" value="${esc(centsToInput(+S.config.teto||0))}" inputmode="decimal" placeholder="0,00" aria-label="Teto mensal do dia a dia"></div></div></section>
   <section class="block"><h2>Limites de crédito</h2>
     <p class="note">O app desconta deste limite as compras e parcelas em aberto. Deixe em branco onde não houver limite.</p>
     <div class="list">${allFormas().map(f=>`<div class="set-row lim"><span>${esc(f.nome)}</span>
@@ -508,7 +554,7 @@ function catSheet(k){
     });
   });
 }
-function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
+function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c==="teto:")tetoSheet();else if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
 function cardItemRow(i,extra){
   const c=catById(i.cat);
   const sub=[i.fixo?"Fixo":null,i.parcela?"Parcela "+i.parcela:null,c?c.nome:null,i.data&&!i.fixo&&(!i.parcela||i.parcela.startsWith("1/"))?new Date(i.data+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}):null,extra||null].filter(Boolean).join(" · ");
@@ -703,6 +749,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#prev")){S.month=addM(S.month,-1);S.filter=null;render();return}
   if(t.closest("#next")){S.month=addM(S.month,1);S.filter=null;render();return}
   if(t.closest("#clearfilter")){S.filter=null;render();return}
+  if(t.closest("#teto-open")){tetoSheet();return}
   const co=t.closest("[data-catopen]");if(co){catSheet(co.dataset.catopen);return}
   const fl=t.closest("[data-filter]");if(fl){cardSheet(fl.dataset.filter);return}
   const op=t.closest("[data-open]");if(op){const[k,id]=op.dataset.open.split(/:(.+)/);
@@ -726,6 +773,7 @@ app.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
   if(d.cardN){S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.cardF){const v=Math.max(0,Math.min(31,parseInt(t.value,10)||0));S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardF?{...c,fechamento:v}:c);saveConfig()}
+  else if(d.teto){S.config.teto=toCents(t.value);saveConfig()}
   else if(d.lim){const v=toCents(t.value);const fx=c=>c.id===d.lim?{...c,limite:v}:c;S.config.cartoes=S.config.cartoes.map(fx);S.config.formas=S.config.formas.map(fx);saveConfig()}
   else if(d.formaN){S.config.formas=S.config.formas.map(c=>c.id===d.formaN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.catN){S.config.categorias=S.config.categorias.map(c=>c.id===d.catN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
