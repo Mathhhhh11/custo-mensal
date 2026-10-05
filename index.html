@@ -119,6 +119,25 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .meta-tabs button{font-size:14px}
 .meta-bar{height:12px;border-radius:7px;margin-bottom:6px}.meta-bar i{background:var(--pos);border-radius:7px}
 .meta-prev{margin:0}.meta-prev b{color:var(--ink)}
+.busca{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px;color:var(--muted)}
+.busca:focus-within{border-color:var(--accent)}
+.busca svg{width:18px;height:18px;flex:none}
+.busca input{flex:1;min-width:0;border:0;background:none;padding:11px 0;font-size:16px;color:var(--ink);outline:none}
+.busca input::-webkit-search-cancel-button{display:none}
+.busca button{border:0;background:none;color:var(--muted);font-size:16px;padding:6px}
+#busca-res:empty{display:none}
+.busca-seg{grid-template-columns:1fr 1fr}
+.busca-tot{display:flex;justify-content:space-between;align-items:baseline;padding:2px 4px;color:var(--muted);font-size:14px}
+.busca-tot b{color:var(--ink);font-size:20px;font-family:var(--display)}
+.sim-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.sim-big{display:flex;justify-content:space-between;align-items:baseline;background:var(--sunk);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.sim-big b{font-family:var(--display);font-size:24px;color:var(--pos)}
+.sim-metas{margin:10px 0 0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.sim-tab{overflow-x:auto;margin-top:10px}
+.sim-tab table{width:100%;border-collapse:collapse;font-size:14px}
+.sim-tab th{text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:6px 4px;border-bottom:1px solid var(--line)}
+.sim-tab td{padding:7px 4px;border-bottom:1px solid var(--line)}
+.sim-tab td.num,.sim-tab th:not(:first-child){text-align:right}
 .chev{color:var(--muted);font-size:20px;line-height:1;margin-left:-4px}
 .cat-head{display:flex;align-items:center;gap:10px}
 .cat-head .dot{width:14px;height:14px}
@@ -310,6 +329,27 @@ function compOf(data,formaId){
   if(fech&&+data.slice(8,10)>=fech)ym=addM(ym,1);
   return ym;
 }
+S.busca="";S.buscaTodos=false;
+const norm=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+function buscaHtml(){
+  const q=norm(S.busca).trim();if(!q)return"";
+  const hit=(desc,cat,forma)=>norm(desc).includes(q)||norm((catById(cat)||{}).nome).includes(q)||norm((formaById(forma)||{}).nome).includes(q);
+  let rows=[],tot=0;
+  if(S.buscaTodos){
+    const ls=S.lanc.filter(l=>hit(l.desc,l.cat,l.forma)).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+    for(const l of ls){const n=Math.max(1,+l.parcelas||1);const sinal=l.tipo==="receita"?1:-1;tot+=sinal*l.valor;
+      const c=catById(l.cat),f=formaById(l.forma);
+      rows.push(`<button class="row" data-edit-l="${esc(l.id)}"><span class="dot" style="background:${catColor(l.cat)}"></span><span class="main"><span class="t">${esc(l.desc||"Sem descrição")}</span><span class="s">${esc([new Date(l.data+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"2-digit"}),n>1?n+"x":null,c?c.nome:null,f?f.nome:null].filter(Boolean).join(" · "))}</span></span><span class="v num ${l.tipo==="receita"?"in":""}">${money(l.valor)}</span></button>`)}
+  }else{
+    const its=monthItems(S.month).filter(i=>hit(i.desc,i.cat,i.forma)).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+    for(const i of its){tot+=(i.tipo==="receita"?1:-1)*i.valor;rows.push(cardItemRow(i,(formaById(i.forma)||{}).nome))}
+  }
+  const n=rows.length;
+  return`<section class="block busca-box"><div class="seg busca-seg"><button type="button" data-busca-todos="0" class="${S.buscaTodos?"":"on"}">${MESES[+S.month.slice(5)-1]}</button><button type="button" data-busca-todos="1" class="${S.buscaTodos?"on":""}">Todos os meses</button></div>
+    <div class="busca-tot"><span>${n} ${n===1?"resultado":"resultados"}</span><b class="num">${money(Math.abs(tot))}</b></div>
+    ${n?`<div class="list">${rows.join("")}</div>`:`<div class="empty"><b>Nada encontrado</b>Tente outra palavra${S.buscaTodos?"":" ou veja em Todos os meses"}.</div>`}
+    ${S.buscaTodos&&n?`<p class="note">Em "Todos os meses", compras parceladas aparecem uma vez, com o valor total.</p>`:""}</section>`;
+}
 const isDiaADia=i=>i.tipo!=="receita"&&!i.fixo&&!i.parcela;
 function tetoHtml(items){
   const teto=+S.config.teto||0;if(!teto)return"";
@@ -408,7 +448,7 @@ function statusText(){
 }
 function statusLine(){const s=statusText();return`<button class="status ${s.cls}" id="syncpill"><span class="sdot"></span><span id="synctext">${esc(s.t)}</span></button>`}
 function paintStatus(){const b=document.getElementById("syncpill");if(!b)return;const s=statusText();b.className="status "+s.cls;b.querySelector("#synctext").textContent=s.t}
-function renderSoft(){const a=document.activeElement;if(a&&app.contains(a)&&/INPUT|SELECT/.test(a.tagName))paintStatus();else render()}
+function renderSoft(){const a=document.activeElement;if(a&&app.contains(a)&&/INPUT|SELECT/.test(a.tagName)){paintStatus();const r=document.getElementById("busca-res");if(r&&S.busca)r.innerHTML=buscaHtml()}else render()}
 function renderMes(){
   const items=monthItems(S.month);
   const ent=items.filter(i=>i.tipo==="receita").reduce((a,i)=>a+i.valor,0);
@@ -451,6 +491,8 @@ function renderMes(){
     <button class="iconbtn" id="next" aria-label="Próximo mês">›</button>
   </header>
   ${statusLine()}
+  <div class="busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="busca" type="search" placeholder="Buscar lançamento (ex.: Uber)" value="${esc(S.busca||"")}" autocomplete="off" aria-label="Buscar lançamentos">${S.busca?`<button id="busca-x" aria-label="Limpar busca">✕</button>`:""}</div>
+  <div id="busca-res">${buscaHtml()}</div>
   ${tetoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
     ${pieHtml(cats,ent,sai)}
@@ -519,7 +561,39 @@ function renderMetas(){
     <div class="actions"><button class="btn ghost" id="meta-edit">Editar meta</button><button class="btn" id="meta-dep">Registrar</button></div>
   </section>
   <section class="block"><h2>Histórico</h2><div class="list">${hist}</div>
-  ${+m.inicial?`<p class="note">Inclui ${money(+m.inicial)} que já estavam guardados quando a meta foi criada.</p>`:""}</section>`;
+  ${+m.inicial?`<p class="note">Inclui ${money(+m.inicial)} que já estavam guardados quando a meta foi criada.</p>`:""}</section>
+  <section class="block"><h2>Simulação</h2>
+    <button class="row sim-card" id="sim-open"><span class="main"><span class="t">E se eu for promovido?</span><span class="s">Veja quanto a mais você guarda nos próximos 12 meses</span></span><span class="chev" aria-hidden="true">›</span></button></section>`;
+}
+function sobraMes(ym){const its=monthItems(ym);return its.reduce((a,i)=>a+(i.tipo==="receita"?i.valor:-i.valor),0)}
+function simSheet(){
+  const sal=S.config.fixos.find(f=>f.id==="salario")||S.config.fixos.find(f=>f.tipo==="receita");
+  const atual=sal?+sal.valor:0;
+  const st={novo:LS.get("cm.simNovo",atual+146000),desde:LS.get("cm.simDesde",addM(ymOf(today()),1))};
+  openSheet(`<h3>Simular promoção</h3>
+    <p class="note">Salário no app hoje: <b>${money(atual)}</b>. Informe como ele ficaria com a promoção.</p>
+    <div class="two"><label class="f">Novo salário<input class="inp num" id="sim-novo" inputmode="decimal" value="${esc(centsToInput(st.novo))}"></label>
+      <label class="f">A partir de<input class="inp" type="month" id="sim-desde" value="${esc(st.desde)}"></label></div>
+    <div id="sim-res"></div>
+    <p class="note">É só uma simulação: nada é alterado no app. Quando a promoção sair, me avise ou mude o Salário em Fixos.</p>
+    <button class="btn ghost" id="sim-close" style="width:100%">Fechar</button>`,root=>{
+    const $=s=>root.querySelector(s);
+    const calc=()=>{
+      const novo=toCents($("#sim-novo").value),desde=$("#sim-desde").value||addM(ymOf(today()),1);
+      LS.set("cm.simNovo",novo);LS.set("cm.simDesde",desde);
+      const dif=novo-atual;let tH=0,tS=0;const rows=[];
+      for(let k=0;k<12;k++){const ym=addM(desde,k);const h=sobraMes(ym);const sv=h+dif;tH+=h;tS+=sv;
+        rows.push(`<tr><td>${ymShort(ym)}</td><td class="num">${money(h)}</td><td class="num"><b>${money(sv)}</b></td></tr>`)}
+      const metasTxt=S.config.metas.filter(m=>+m.meta>0).map(m=>{const c=metaCalc(m);if(c.falta<=0)return"";
+        const meses=dif>0?Math.ceil(c.falta/dif):0;return dif>0?`<li><b>${esc(m.nome)}</b>: só o aumento já cobre o que falta (${money(c.falta)}) em ${meses} ${meses>1?"meses":"mês"}.</li>`:""}).join("");
+      $("#sim-res").innerHTML=`<div class="sim-big"><span>Aumento por mês</span><b class="num ${dif<0?"negtxt":""}">${dif>=0?"+":"−"} ${money(Math.abs(dif))}</b></div>
+        <div class="io"><div><span>Em 12 meses, hoje</span><b class="num">${money(tH)}</b></div><div class="in"><span>Com a promoção</span><b class="num">${money(tS)}</b></div></div>
+        ${metasTxt?`<ul class="sim-metas">${metasTxt}</ul>`:""}
+        <div class="sim-tab"><table><thead><tr><th>Mês</th><th>Sobra hoje</th><th>Com promoção</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+    };
+    calc();$("#sim-novo").addEventListener("input",calc);$("#sim-desde").addEventListener("change",calc);
+    $("#sim-close").addEventListener("click",()=>closeSheet());
+  });
 }
 function saveMeta(m){S.config.metas=S.config.metas.map(x=>x.id===m.id?m:x);saveConfig()}
 function depSheet(m,dep){
@@ -829,6 +903,11 @@ app.addEventListener("click",e=>{
   if(t.closest("#next")){S.month=addM(S.month,1);S.filter=null;render();return}
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   if(t.closest("#teto-open")){tetoSheet();return}
+  if(t.closest("#busca-x")){S.busca="";render();return}
+  const bt=t.closest("[data-busca-todos]");if(bt){S.buscaTodos=bt.dataset.buscaTodos==="1";document.getElementById("busca-res").innerHTML=buscaHtml();return}
+  const el=t.closest("[data-edit-l]");if(el){const l=S.lanc.find(x=>x.id===el.dataset.editL);if(l)lancForm(l);return}
+  if(t.closest("#busca-res [data-edit]")){const b=t.closest("[data-edit]");const[k,id]=b.dataset.edit.split(/:(.+)/);if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
+  if(t.closest("#sim-open")){simSheet();return}
   const mt=t.closest("[data-meta-tab]");if(mt){S.metaTab=mt.dataset.metaTab;LS.set("cm.metaTab",S.metaTab);render();return}
   const curMeta=()=>S.config.metas.find(x=>x.id===S.metaTab)||S.config.metas[0];
   if(t.closest("#meta-dep")){depSheet(curMeta());return}
@@ -852,6 +931,10 @@ app.addEventListener("click",e=>{
   if(t.closest("#api-off")){S.api=null;LS.set("cm.api",null);S.sync="idle";render();toast("Desconectado. Os dados continuam neste celular.");return}
   if(t.closest("#exp-mes")){exportCsv(false);return}
   if(t.closest("#exp-all")){exportCsv(true);return}
+});
+app.addEventListener("input",e=>{
+  if(e.target.id==="busca"){S.busca=e.target.value;const r=document.getElementById("busca-res");if(r)r.innerHTML=buscaHtml();
+    const box=e.target.parentElement;const x=box.querySelector("#busca-x");if(S.busca&&!x)box.insertAdjacentHTML("beforeend",`<button id="busca-x" aria-label="Limpar busca">✕</button>`);if(!S.busca&&x)x.remove()}
 });
 app.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
