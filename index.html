@@ -402,8 +402,8 @@ function pieHtml(cats,ent,sai){
     <text x="80" y="76" text-anchor="middle" class="pie-c1">${ent?usado+"%":"—"}</text><text x="80" y="95" text-anchor="middle" class="pie-c2">${ent?"da renda gasta":"sem renda"}</text></svg>
     <div class="pie-leg">${leg}</div></div>`;
 }
-function limiteUsado(fid){
-  const ym=ymOf(today());let u=0;
+function limiteUsado(fid,ym){
+  ym=ym||S.month;let u=0;
   for(const l of S.lanc){if(l.forma!==fid||l.tipo==="receita")continue;
     const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data);
     for(let i=0;i<n;i++){if(addM(c0,i)>=ym)u+=parcelaValor(l.valor,n,i)}}
@@ -508,12 +508,12 @@ function renderMes(){
   ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
     ${formasRows.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;const lim=f&&+f.limite>0?+f.limite:0;
       let extra="";
-      if(lim){const u=limiteUsado(k),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
+      if(lim){const u=limiteUsado(k,S.month),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
         extra=`<span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
         <span class="s num limtxt ${d<0?"negtxt":""}">Disponível <b>${money(d)}</b> de ${money(lim)}</span>`}
       return`<button class="row ${on?"active":""}" data-filter="${esc(k)}"><span class="main"><span class="t">${esc(f?f.nome:"Não informado")}</span>
       <span class="s">${lim?"Gasto no mês":(f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista")}${on?" · filtrando":""}</span>${extra}</span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
-  </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite usado soma o que já caiu neste mês e todas as parcelas que ainda vão cair nesse cartão.</p>`:""}</section>`:""}
+  </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite de cada mês conta a fatura daquele mês e as parcelas que ainda vão cair. O que foi pago nos meses anteriores volta para o limite. Compras no Débito, Pix ou Dinheiro não usam limite.</p>`:""}</section>`:""}
 
   ${cats.length?`<section class="block"><h2>Por categoria</h2><div class="list">
     ${cats.map(([k,v])=>{const c=catById(k);return`<button class="row" data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="main"><span class="t">${esc(c?c.nome:"Outros")}</span>
@@ -734,7 +734,7 @@ function cardSheet(fid){
   const futTot=fut.reduce((a,x)=>a+x.rest,0);
   const lim=f&&+f.limite>0?+f.limite:0;
   let limHtml="";
-  if(lim){const u=limiteUsado(fid),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
+  if(lim){const u=limiteUsado(fid,S.month),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
     limHtml=`<div class="card-lim"><div class="card-lim-row"><span>Limite disponível</span><b class="num ${d<0?"negtxt":""}">${money(d)}</b></div>
     <span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
     <div class="card-lim-row note"><span>Comprometido ${money(u)}</span><span>Limite ${money(lim)}</span></div></div>`}
@@ -784,7 +784,8 @@ function lancForm(existing){
   <div class="two"><label class="f">Data<input class="inp" type="date" id="f-data" value="${esc(L.data)}"></label>
     <label class="f">Parcelas<select class="inp" id="f-parc">${Array.from({length:24},(_,i)=>`<option value="${i+1}" ${i+1===n0?"selected":""}>${i===0?"À vista":(i+1)+"x"}</option>`).join("")}</select></label></div>
   <div class="seg" id="f-modo" hidden><button type="button" data-v="total">Valor total</button><button type="button" data-v="parcela">Valor da parcela</button></div>
-  <label class="f" id="f-comp-wrap">Entra no mês<select class="inp" id="f-comp"></select></label>
+  <div class="two"><label class="f" id="f-comp-wrap"><span id="f-comp-lbl">Entra no mês</span><select class="inp" id="f-comp"></select></label>
+    <label class="f" id="f-pa-wrap" hidden>Esta é a parcela<select class="inp" id="f-pa"><option value="1">1ª</option></select></label></div>
   <div class="hint" id="f-hint"></div>
   <div class="actions">${existing?`<button type="button" class="btn danger" id="f-del">Excluir</button>`:""}<button type="button" class="btn" id="f-save">Salvar</button></div>`;
   openSheet(html,root=>{
@@ -803,9 +804,12 @@ function lancForm(existing){
       const n=+$("#f-parc").value; $("#f-modo").hidden=n<2||st.tipo==="receita";
       $(".f-cat-wrap").hidden=st.tipo==="receita";
       let v=toCents($("#f-valor").value); const total=(n>1&&st.modo==="parcela")?v*n:v;
-      const comp=compSel.value;
+      const pa=$("#f-pa"),prev=+pa.value||1;$("#f-pa-wrap").hidden=n<2||st.tipo==="receita";
+      if(pa.options.length!==n){pa.innerHTML=Array.from({length:n},(_,i)=>`<option value="${i+1}">${i+1}ª de ${n}</option>`).join("");pa.value=String(Math.min(prev,n))}
+      const k=n>1?(+pa.value||1):1;$("#f-comp-lbl").textContent=n>1?"Mês desta parcela":"Entra no mês";
+      const comp=addM(compSel.value,-(k-1));
       let h="";
-      if(n>1&&total)h=`<b>${n}x de ${money(parcelaValor(total,n,1))}</b> · total ${money(total)} · de ${ymShort(comp)} a ${ymShort(addM(comp,n-1))}`;
+      if(n>1&&total)h=`<b>${n}x de ${money(parcelaValor(total,n,1))}</b> · total ${money(total)} · de ${ymShort(comp)} a ${ymShort(addM(comp,n-1))}${k>1?` · em ${ymShort(compSel.value)} cai a ${k}ª`:""}`;
       else if(total)h=`<b>${money(total)}</b> em ${ymLabel(comp)}`;
       else h="Digite o valor da compra.";
       const card=S.config.cartoes.find(c=>c.id===st.forma);
@@ -824,14 +828,14 @@ function lancForm(existing){
     $("#f-forma").addEventListener("click",e=>{const b=e.target.closest("[data-forma]");if(!b)return;st.forma=b.dataset.forma;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c===b));compManual=null;fillComp();update()});
     $("#f-data").addEventListener("change",()=>{compManual=null;fillComp();update()});
     compSel.addEventListener("change",()=>{compManual=compSel.value;update()});
-    $("#f-valor").addEventListener("input",update);$("#f-parc").addEventListener("change",update);
+    $("#f-valor").addEventListener("input",update);$("#f-parc").addEventListener("change",update);$("#f-pa").addEventListener("change",update);
     if(!existing)setTimeout(()=>$("#f-valor").focus(),60);
     $("#f-save").addEventListener("click",async()=>{
       const n=+$("#f-parc").value;let v=toCents($("#f-valor").value);
       const total=(n>1&&st.modo==="parcela"&&st.tipo!=="receita")?v*n:v; if(!total)return;
       const obj={id:existing?existing.id:uid(),tipo:st.tipo,valor:total,desc:$("#f-desc").value.trim(),
         cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,data:$("#f-data").value||today(),
-        parcelas:st.tipo==="receita"?1:n,comp:compSel.value,criado:existing?.criado||new Date().toISOString()};
+        parcelas:st.tipo==="receita"?1:n,comp:(st.tipo!=="receita"&&n>1)?addM(compSel.value,-((+$("#f-pa").value||1)-1)):compSel.value,criado:existing?.criado||new Date().toISOString()};
       S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita")S.lastForma=obj.forma;
       closeSheet();await saveLanc(obj);toast(existing?"Lançamento atualizado":"Lançamento salvo");backToCat();
     });
@@ -970,7 +974,7 @@ function relatorioTxt(ym){
   const fs=Object.entries(byF).sort((a,b)=>b[1]-a[1]);
   if(fs.length){L.push("","*Por cartão e forma de pagamento*");
     for(const[k,v]of fs){const f=formaById(k);const lim=f&&+f.limite>0?+f.limite:0;
-      L.push(`• ${f?f.nome:"Não informado"}: ${money(v)}${lim&&ym===ymOf(today())?` · limite disponível ${money(lim-limiteUsado(k))}`:""}`)}}
+      L.push(`• ${f?f.nome:"Não informado"}: ${money(v)}${lim?` · limite disponível ${money(lim-limiteUsado(k,ym))}`:""}`)}}
   const top=desp.filter(i=>!i.fixo).sort((a,b)=>b.valor-a.valor).slice(0,5);
   if(top.length){L.push("","*Maiores gastos*");for(const i of top)L.push(`• ${i.desc||"Sem descrição"}${i.parcela?" ("+i.parcela+")":""}: ${money(i.valor)}`)}
   const fx=sum(desp.filter(i=>i.fixo)),pc=sum(desp.filter(i=>i.parcela&&!i.fixo));
