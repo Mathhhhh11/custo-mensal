@@ -100,6 +100,11 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .row .v.in{color:var(--pos)}
 .row.active{background:var(--accent-soft)}
 .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.delta{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:8px;vertical-align:1px;white-space:nowrap}
+.delta.up{background:color-mix(in srgb,var(--neg) 14%,transparent);color:var(--neg)}
+.delta.down{background:color-mix(in srgb,var(--pos) 14%,transparent);color:var(--pos)}
+.delta.eq{background:var(--sunk);color:var(--muted)}
+.delta.big{margin-left:4px}
 .tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--sunk);color:var(--muted);margin-left:6px;vertical-align:1px}
 .tag.fix{background:var(--accent-soft);color:var(--accent)}
 .card-lim{background:var(--sunk);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
@@ -471,6 +476,15 @@ function renderMes(){
   const byC={};for(const i of desp){const k=i.cat||"outros";byC[k]=(byC[k]||0)+i.valor}
   const cats=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
   const maxC=cats.length?cats[0][1]:1;
+  // comparativo com o mês anterior
+  const antYm=addM(S.month,-1),antNome=MESES[+antYm.slice(5)-1].toLowerCase();
+  const antDesp=monthItems(antYm).filter(i=>i.tipo!=="receita");
+  const prevC={};for(const i of antDesp){const k=i.cat||"outros";prevC[k]=(prevC[k]||0)+i.valor}
+  const saiAnt=antDesp.reduce((a,i)=>a+i.valor,0);
+  const delta=(v,prev,big)=>{if(!prev)return v>0&&saiAnt>0?`<span class="delta eq">novo</span>`:"";const pct=Math.round((v-prev)/prev*100);
+    const cls=pct>0?"up":pct<0?"down":"eq",txt=pct>0?"↑ "+pct+"%":pct<0?"↓ "+(-pct)+"%":"= igual";
+    return`<span class="delta ${cls}${big?" big":""}" title="${esc(antNome)}: ${esc(money(prev))}">${txt}</span>`};
+  const sumirom=Object.keys(prevC).filter(k=>!(k in byC)&&prevC[k]>0);
   // meter by category share of income
   const base=Math.max(ent,sai,1);
   const meter=cats.map(([k,v])=>`<i style="width:${(v/base*100).toFixed(2)}%;background:${catColor(k)}"></i>`).join("");
@@ -505,7 +519,7 @@ function renderMes(){
   <section class="summary" aria-label="Resumo do mês">
     ${pieHtml(cats,ent,sai)}
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
-    <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas</span><b class="num">${money(sai)}</b></div></div>
+    <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
     <div><div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
   <button class="row sim-card rel-open" id="rel-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg><span class="main"><span class="t">Relatório do mês</span><span class="s">Enviar no WhatsApp ou salvar</span></span><span class="chev" aria-hidden="true">›</span></button>
@@ -521,9 +535,9 @@ function renderMes(){
   </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite de cada mês conta a fatura daquele mês e as parcelas que ainda vão cair. O que foi pago nos meses anteriores volta para o limite. Compras no Débito, Pix ou Dinheiro não usam limite.</p>`:""}</section>`:""}
 
   ${cats.length?`<section class="block"><h2>Por categoria</h2><div class="list">
-    ${cats.map(([k,v])=>{const c=catById(k);return`<button class="row" data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="main"><span class="t">${esc(c?c.nome:"Outros")}</span>
+    ${cats.map(([k,v])=>{const c=catById(k);return`<button class="row" data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="main"><span class="t">${esc(c?c.nome:"Outros")}${delta(v,prevC[k])}</span>
       <span class="bar"><i style="width:${(v/maxC*100).toFixed(1)}%;background:${catColor(k)}"></i></span></span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
-  </div></section>`:""}
+  </div>${saiAnt?`<p class="note">Setas: comparado com ${esc(antNome)} (${money(saiAnt)} em saídas). ↑ gastou mais · ↓ gastou menos.${sumirom.length?" Sem gasto este mês em: "+esc(sumirom.map(k=>(catById(k)||{nome:"Outros"}).nome).join(", "))+".":""}</p>`:""}</section>`:""}
 
   <section class="block"><h2>Lançamentos</h2>
     ${S.filter?`<button class="filterchip" id="clearfilter">${esc((formaById(S.filter)||{nome:"Não informado"}).nome)} ✕</button>`:""}
