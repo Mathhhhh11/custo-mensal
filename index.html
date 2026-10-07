@@ -110,6 +110,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .kpi-t{font-size:12.5px;font-weight:600;color:var(--muted)}
 .kpi-v{font-family:var(--display);font-size:24px;line-height:1.15;color:var(--ink);overflow-wrap:anywhere}
 .kpi-s{font-size:12px;color:var(--muted)}
+.kpi.wide{grid-column:1/-1}.kpi-sub{margin-top:4px;padding-top:6px;border-top:1px solid var(--line)}.kpi-sub b{color:var(--ink)}
 .kpi.ok .kpi-s{color:var(--pos)}.kpi.warn .kpi-s{color:var(--warn)}
 .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
 .ch-title{margin:0;font-weight:700;font-size:15px}
@@ -612,9 +613,13 @@ function renderPainel(){
   const rc=res?metaCalc(res):null,rp=rc&&rc.meta?Math.min(100,rc.guardado/rc.meta*100):0;
   const abaixo=meses.find(m=>m.ym>=hoje&&m.ent&&m.pct<=15);
   const kpi=(t,v,s,cls)=>`<div class="kpi ${cls||""}"><span class="kpi-t">${t}</span><b class="kpi-v num">${v}</b><span class="kpi-s">${s}</span></div>`;
+  const anoCal=+hoje.slice(0,4)+(+hoje.slice(5)>=10?1:0);
+  const entCal=Array.from({length:12},(_,i)=>sum(monthItems(anoCal+"-"+pad(i+1)).filter(x=>x.tipo==="receita"))).reduce((a,b)=>a+b,0);
+  const reais=v=>"R$ "+Math.round(v/100).toLocaleString("pt-BR");
   const kpis=`<div class="kpis">
+    <div class="kpi wide"><span class="kpi-t">Total projetado a receber</span><b class="kpi-v num">${reais(entAno)}</b><span class="kpi-s">${futuros.length} meses, de ${ymLabel(futuros[0].ym).toLowerCase()} a ${ymLabel(futuros.at(-1).ym).toLowerCase()} · salário, 13º e outras entradas</span><span class="kpi-s kpi-sub">Só em ${anoCal} (jan a dez): <b class="num">${reais(entCal)}</b></span></div>
     ${kpi("Sobra livre prevista","R$ "+Math.round(livreAno/100).toLocaleString("pt-BR"),`${futuros.length} meses, de ${lab(futuros[0].ym)} a ${lab(futuros.at(-1).ym)}`)}
-    ${kpi("Quanto da renda sobra",Math.round(taxa)+"%",taxa>=40?"Ótimo: acima de 40%":taxa>=20?"Bom: meta é 40%":"Abaixo do ideal (40%)",taxa>=40?"ok":taxa>=20?"":"warn")}
+    ${kpi("Quanto da renda sobra",Math.round(taxa)+"%",taxa>=40?"Ótimo: 40% ou mais":taxa>=20?"Bom: meta é 40%":"Abaixo do ideal (40%)",taxa>=40?"ok":taxa>=20?"":"warn")}
     ${kpi("Parcelas este mês",Math.round(cur.pct)+"%","da renda · ideal até 15%",cur.pct>15?"warn":"ok")}
     ${rc&&rc.meta?kpi(esc(res.nome),Math.floor(rp)+"%",`${money(rc.guardado)} de ${money(rc.meta)}`,rp>=100?"ok":""):kpi("Saídas este mês","R$ "+Math.round((cur.fix+cur.par+cur.dia)/100).toLocaleString("pt-BR"),"fixos, parcelas e compras")}
   </div>`;
