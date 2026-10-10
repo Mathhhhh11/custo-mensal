@@ -143,6 +143,27 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .pg-top{display:flex;justify-content:space-between;font-size:14px;font-weight:600}
 .pg-s{font-size:12.5px;color:var(--muted)}
 .chart-tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:10px;white-space:pre-line;max-width:240px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.cal-card{gap:12px}
+.cal-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cal-sum div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cal-sum span{font-size:12px;color:var(--muted);font-weight:600}
+.cal-sum b{font-size:15px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-h{font-size:11px;font-weight:700;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal-d{position:relative;aspect-ratio:1/1.05;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:2px;min-width:0}
+.cal-d.tem{background:color-mix(in srgb,var(--accent) calc(var(--a)*100%),var(--surface));border-color:transparent}
+.cal-d.tem .cal-n,.cal-d.tem .cal-v{color:color-mix(in srgb,var(--ink) 100%,transparent)}
+.cal-d.fut{opacity:.45}
+.cal-d.hoje{outline:2px solid var(--ink);outline-offset:-2px}
+.cal-n{font-size:12px;font-weight:600;line-height:1.1}
+.cal-v{font-size:10.5px;font-weight:700;line-height:1.1}
+.cal-x{display:block}
+.cal-flag{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--neg);display:block}
+.cal-leg{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.cal-leg>i{width:16px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--accent) calc(var(--a)*100%),var(--surface));display:inline-block}
+.cal-leg-flag{display:inline-flex;align-items:center;gap:5px;margin-left:10px}
+.cal-leg-flag .cal-flag{position:static}
+.cal-d.dk .cal-n,.cal-d.dk .cal-v{color:var(--accent-ink)}
 .tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--sunk);color:var(--muted);margin-left:6px;vertical-align:1px}
 .tag.fix{background:var(--accent-soft);color:var(--accent)}
 .card-lim{background:var(--sunk);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
@@ -312,6 +333,7 @@ const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.par
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 S.view=LS.get("cm.view","mes");
 function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
+  catEntrada:Array.isArray(c.catEntrada)&&c.catEntrada.length?c.catEntrada:[{id:"e-salario",nome:"Salário",cor:2},{id:"e-13",nome:"13º salário",cor:5},{id:"e-outras",nome:"Outras entradas",cor:7}],
   categorias:Array.isArray(c.categorias)&&c.categorias.length?c.categorias:DEFAULT_CONFIG.categorias,
   cartoes:Array.isArray(c.cartoes)?c.cartoes:[],
   formas:Array.isArray(c.formas)?c.formas:DEFAULT_CONFIG.formas,
@@ -342,6 +364,7 @@ async function callApi(body){
 }
 function applyServer(j){
   S.config=normalize(j.config);S.lanc=Array.isArray(j.lancamentos)?j.lancamentos:[];
+  for(const l of S.lanc)if(l.tipo==="receita"&&!l.cat&&ehDecimo(l.desc)){l.cat="e-13";enqueue({op:"upsert",lanc:{...l}})}
   S.planilha=j.planilha||S.planilha;LS.set("cm.planilha",S.planilha);
   S.lastSync=new Date().toISOString();LS.set("cm.lastSync",S.lastSync);saveCache();
 }
@@ -373,7 +396,8 @@ async function deleteLanc(id){S.lanc=S.lanc.filter(x=>x.id!==id);render();enqueu
 /* ---------- domain ---------- */
 const allFormas=()=>[...S.config.cartoes.map(c=>({...c,cartao:true})),...S.config.formas];
 const formaById=id=>allFormas().find(f=>f.id===id);
-const catById=id=>S.config.categorias.find(c=>c.id===id);
+const catById=id=>S.config.categorias.find(c=>c.id===id)||(S.config.catEntrada||[]).find(c=>c.id===id);
+const ehDecimo=d=>/d[eé]cimo|13[ºo°]?\s*sal/i.test(String(d||""));
 const catColor=id=>{const c=catById(id);return"var(--c"+((c?c.cor:7)%9)+")"};
 function compOf(data,formaId){
   const card=S.config.cartoes.find(c=>c.id===formaId);let ym=ymOf(data);
@@ -564,6 +588,8 @@ function renderMes(){
   </section>
   <button class="row sim-card rel-open" id="rel-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg><span class="main"><span class="t">Relatório do mês</span><span class="s">Enviar no WhatsApp ou salvar</span></span><span class="chev" aria-hidden="true">›</span></button>
 
+  ${calHtml()}
+
   ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
     ${formasRows.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;const lim=f&&+f.limite>0?+f.limite:0;
       let extra="";
@@ -681,6 +707,49 @@ function renderPainel(){
   const cards=allFormas().filter(f=>+f.limite>0).map(f=>{const u=limiteUsado(f.id,hoje),lim=+f.limite,p=u/lim*100;return bar(esc(f.nome)+" · limite usado",u,lim,`Disponível ${money(lim-u)} de ${money(lim)}`,p>=90?"var(--neg)":p>=70?"var(--warn)":"var(--pos)")}).join("");
   const resto=`<section class="block"><h2>Metas e cartões</h2><div class="chart-card pgs">${metasH}${cards}</div></section>`;
   return`<header class="monthbar"><h1><small>Visão geral</small>Painel</h1></header>${statusLine()}${kpis}${chart1}${chart2}${chart3}${resto}`;
+}
+/* ---------- gasto por dia (calendário) ---------- */
+const DIAS_SEM=["D","S","T","Q","Q","S","S"];
+function gastoDoLanc(l){const n=Math.max(1,+l.parcelas||1);return n>1?parcelaValor(l.valor,n,0):l.valor}
+function comprasDoDia(d){return S.lanc.filter(l=>l.tipo!=="receita"&&l.data===d)}
+function calHtml(){
+  const ym=S.month,[y,m]=ym.split("-").map(Number),nd=new Date(y,m,0).getDate(),ini=new Date(y,m-1,1).getDay();
+  const hoje=today(),teto=+S.config.teto||0,tetoDia=teto?Math.round(teto/nd):0;
+  const porDia={},vistaDia={};
+  for(const l of S.lanc){if(l.tipo==="receita"||!l.data||l.data.slice(0,7)!==ym)continue;const v=gastoDoLanc(l);porDia[l.data]=(porDia[l.data]||0)+v;if(!(+l.parcelas>1))vistaDia[l.data]=(vistaDia[l.data]||0)+l.valor}
+  const vals=Object.values(porDia),max=Math.max(1,...vals),tot=vals.reduce((a,b)=>a+b,0);
+  const ate=ym===hoje.slice(0,7)?+hoje.slice(8,10):ym<hoje.slice(0,7)?nd:0;
+  const media=ate?Math.round(Object.entries(porDia).filter(([d])=>+d.slice(8,10)<=ate).reduce((a,[,v])=>a+v,0)/ate):0;
+  const top=Object.entries(porDia).sort((a,b)=>b[1]-a[1])[0];
+  const k=v=>{const r=v/100;return r>=1000?(r/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+"k":Math.round(r).toString()};
+  let cells="";for(let i=0;i<ini;i++)cells+=`<span class="cal-x" aria-hidden="true"></span>`;
+  for(let d=1;d<=nd;d++){const ds=ym+"-"+pad(d),v=porDia[ds]||0,fut=ds>hoje,acima=tetoDia&&(vistaDia[ds]||0)>tetoDia;
+    const op=v?(0.14+0.66*Math.sqrt(v/max)).toFixed(2):0;
+    cells+=`<button class="cal-d${ds===hoje?" hoje":""}${fut?" fut":""}${v?" tem":""}${op>0.5?" dk":""}" data-dia="${ds}" aria-label="${d} de ${MESES[m-1]}: ${v?money(v):"sem gastos"}"${v?` style="--a:${op}"`:""}><span class="cal-n">${d}</span>${v?`<span class="cal-v num">${k(v)}</span>`:""}${acima?`<i class="cal-flag" title="Acima do teto diário"></i>`:""}</button>`}
+  return`<section class="block"><h2>Gasto por dia</h2><div class="chart-card cal-card">
+    <div class="cal-sum"><div><span>Total em compras</span><b class="num">${money(tot)}</b></div><div><span>Média por dia</span><b class="num">${ate?money(media):"—"}</b></div><div><span>Dia mais caro</span><b class="num">${top?(+top[0].slice(8,10))+"/"+pad(m):"—"}</b></div></div>
+    <div class="cal-grid">${DIAS_SEM.map(x=>`<span class="cal-h">${x}</span>`).join("")}${cells}</div>
+    <div class="cal-leg"><span>Menos</span><i style="--a:.18"></i><i style="--a:.4"></i><i style="--a:.6"></i><i style="--a:.8"></i><span>Mais</span>${tetoDia?`<span class="cal-leg-flag"><i class="cal-flag"></i>à vista acima de ${money(tetoDia)}/dia</span>`:""}</div>
+    <p class="note">Toque num dia para ver as compras. Valores em reais (k = mil). Compras parceladas contam pelo valor da 1ª parcela; contas fixas não entram.</p>
+  </div></section>`;
+}
+function diaSheet(ds){
+  const ls=comprasDoDia(ds).sort((a,b)=>(b.criado||"").localeCompare(a.criado||""));
+  const tot=ls.reduce((a,l)=>a+gastoDoLanc(l),0),dt=new Date(ds+"T12:00:00");
+  const tit=dt.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+  const rows=ls.map(l=>{const n=Math.max(1,+l.parcelas||1),c=catById(l.cat),f=formaById(l.forma);
+    return`<button class="row" data-dia-edit="${esc(l.id)}"><span class="dot" style="background:${catColor(l.cat)}"></span><span class="main"><span class="t">${esc(l.desc||"Sem descrição")}${n>1?`<span class="tag">${n}x</span>`:""}</span><span class="s">${esc([c?c.nome:null,f?f.nome:null,n>1?"total "+money(l.valor):null].filter(Boolean).join(" · "))}</span></span><span class="v num">${money(gastoDoLanc(l))}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("");
+  openSheet(`<div class="cat-head"><h3 style="text-transform:capitalize">${esc(tit)}</h3></div>
+    <div><div class="cat-total num">${money(tot)}</div><div class="note">${ls.length} ${ls.length===1?"compra":"compras"} neste dia · toque para corrigir</div></div>
+    ${ls.length?`<div class="list">${rows}</div>`:`<div class="empty"><b>Nenhuma compra neste dia</b>Use o + para lançar.</div>`}
+    <button class="btn" id="dia-add" style="width:100%">+ Lançar compra neste dia</button>
+    <button class="btn ghost" id="dia-close" style="width:100%">Fechar</button>`,root=>{
+    root.addEventListener("click",e=>{
+      if(e.target.closest("#dia-close")){S.returnCat=null;closeSheet();return}
+      if(e.target.closest("#dia-add")){S.returnCat="dia:"+ds;lancForm(null,ds);return}
+      const b=e.target.closest("[data-dia-edit]");if(!b)return;const l=S.lanc.find(x=>x.id===b.dataset.diaEdit);if(l){S.returnCat="dia:"+ds;lancForm(l)}
+    });
+  });
 }
 /* ---------- metas ---------- */
 S.metaTab=LS.get("cm.metaTab","reserva");
@@ -889,7 +958,12 @@ function renderAjustes(){
     <div class="list">${C.formas.map(f=>`<div class="set-row forma"><input class="inp" id="forma-${esc(f.id)}" data-forma-n="${esc(f.id)}" value="${esc(f.nome)}" aria-label="Forma de pagamento">
       <button class="del" data-del-forma="${esc(f.id)}" aria-label="Remover ${esc(f.nome)}">×</button></div>`).join("")}</div>
     <button class="add" id="addforma">+ Forma de pagamento</button></section>
-  <section class="block"><h2>Categorias</h2>
+  <section class="block"><h2>Categorias de entrada</h2>
+    <div class="list">${(C.catEntrada||[]).map(c=>`<div class="set-row cat"><span class="swatch" style="background:var(--c${c.cor%9})"></span>
+      <input class="inp" data-catin-n="${esc(c.id)}" value="${esc(c.nome)}" aria-label="Categoria de entrada">
+      <button class="del" data-del-catin="${esc(c.id)}" aria-label="Remover ${esc(c.nome)}">×</button></div>`).join("")}</div>
+    <button class="add" id="addcatin">+ Categoria de entrada</button></section>
+  <section class="block"><h2>Categorias de saída</h2>
     <div class="list">${C.categorias.map(c=>`<div class="set-row cat"><button class="swatch" data-cor="${esc(c.id)}" style="background:var(--c${c.cor%9})" aria-label="Trocar cor"></button>
       <input class="inp" id="cat-${esc(c.id)}" data-cat-n="${esc(c.id)}" value="${esc(c.nome)}" aria-label="Categoria">
       <button class="del" data-del-cat="${esc(c.id)}" aria-label="Remover ${esc(c.nome)}">×</button></div>`).join("")}</div>
@@ -925,7 +999,7 @@ function catSheet(k){
     });
   });
 }
-function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c==="teto:")tetoSheet();else if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
+function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c==="teto:")tetoSheet();else if(c.startsWith("dia:"))diaSheet(c.slice(4));else if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
 function cardItemRow(i,extra){
   const c=catById(i.cat);
   const sub=[i.fixo?"Fixo":null,i.parcela?"Parcela "+i.parcela:null,c?c.nome:null,i.data&&!i.fixo&&(!i.parcela||i.parcela.startsWith("1/"))?new Date(i.data+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}):null,extra||null].filter(Boolean).join(" · ");
@@ -984,16 +1058,17 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){S.returnCat=null;cl
 function chipsHtml(list,sel,name,withDot){
   return list.map(x=>`<button type="button" class="chip ${x.id===sel?"on":""}" data-${name}="${esc(x.id)}">${withDot?`<span class="dot" style="background:var(--c${x.cor%9})"></span>`:""}${esc(x.nome)}</button>`).join("");
 }
-function lancForm(existing){
+function lancForm(existing,dataPadrao){
   const L=existing||{tipo:"despesa",valor:0,desc:"",cat:S.lastCat||S.config.categorias[0]?.id,forma:S.lastForma||allFormas()[0]?.id,
-    data:(S.month===ymOf(today())?today():S.month+"-01"),parcelas:1};
-  const st={tipo:L.tipo||"despesa",cat:L.cat,forma:L.forma,modo:"total",confirm:false};
+    data:dataPadrao||(S.month===ymOf(today())?today():S.month+"-01"),parcelas:1};
+  const st={tipo:L.tipo||"despesa",cat:L.tipo==="receita"?(S.lastCat||S.config.categorias[0]?.id):L.cat,catIn:L.tipo==="receita"&&L.cat?L.cat:(ehDecimo(L.desc)?"e-13":"e-outras"),forma:L.forma,modo:"total",confirm:false};
   const n0=+L.parcelas||1;
   const html=`<h3>${existing?"Editar lançamento":"Novo lançamento"}</h3>
   <div class="seg" id="f-tipo"><button type="button" data-v="despesa">Despesa</button><button type="button" data-v="receita">Entrada</button></div>
   <div class="amount"><span>R$</span><input id="f-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(centsToInput(L.valor))}" aria-label="Valor"></div>
   <label class="f">Descrição<input class="inp" id="f-desc" value="${esc(L.desc)}" placeholder="Ex.: Mercado, AliExpress, gasolina" autocomplete="off"></label>
   <div class="f-cat-wrap"><label class="f">Categoria</label><div class="chips" id="f-cat" style="margin-top:6px">${chipsHtml(S.config.categorias,st.cat,"cat",true)}</div></div>
+  <div class="f-catin-wrap"><label class="f">Categoria da entrada</label><div class="chips" id="f-catin" style="margin-top:6px">${chipsHtml(S.config.catEntrada,st.catIn,"catin",true)}</div></div>
   <div><label class="f">Pagamento</label><div class="chips" id="f-forma" style="margin-top:6px">${chipsHtml(allFormas(),st.forma,"forma",false)}</div></div>
   <div class="two"><label class="f">Data<input class="inp" type="date" id="f-data" value="${esc(L.data)}"></label>
     <label class="f">Parcelas<select class="inp" id="f-parc">${Array.from({length:24},(_,i)=>`<option value="${i+1}" ${i+1===n0?"selected":""}>${i===0?"À vista":(i+1)+"x"}</option>`).join("")}</select></label></div>
@@ -1016,7 +1091,7 @@ function lancForm(existing){
     const update=()=>{
       paintSeg("#f-tipo",st.tipo);paintSeg("#f-modo",st.modo);
       const n=+$("#f-parc").value; $("#f-modo").hidden=n<2||st.tipo==="receita";
-      $(".f-cat-wrap").hidden=st.tipo==="receita";
+      $(".f-cat-wrap").hidden=st.tipo==="receita";$(".f-catin-wrap").hidden=st.tipo!=="receita";
       let v=toCents($("#f-valor").value); const total=(n>1&&st.modo==="parcela")?v*n:v;
       const pa=$("#f-pa"),prev=+pa.value||1;$("#f-pa-wrap").hidden=n<2||st.tipo==="receita";
       if(pa.options.length!==n){pa.innerHTML=Array.from({length:n},(_,i)=>`<option value="${i+1}">${i+1}ª de ${n}</option>`).join("");pa.value=String(Math.min(prev,n))}
@@ -1038,6 +1113,7 @@ function lancForm(existing){
       if(alvo&&!existing){st.forma=alvo;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c.dataset.forma===alvo));compManual=null;fillComp()}
       update()});
     $("#f-modo").addEventListener("click",e=>{const b=e.target.closest("button");if(b){st.modo=b.dataset.v;update()}});
+    $("#f-catin").addEventListener("click",e=>{const b=e.target.closest("[data-catin]");if(!b)return;st.catIn=b.dataset.catin;root.querySelectorAll("#f-catin .chip").forEach(c=>c.classList.toggle("on",c===b))});
     $("#f-cat").addEventListener("click",e=>{const b=e.target.closest("[data-cat]");if(!b)return;st.cat=b.dataset.cat;root.querySelectorAll("#f-cat .chip").forEach(c=>c.classList.toggle("on",c===b))});
     $("#f-forma").addEventListener("click",e=>{const b=e.target.closest("[data-forma]");if(!b)return;st.forma=b.dataset.forma;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c===b));compManual=null;fillComp();update()});
     $("#f-data").addEventListener("change",()=>{compManual=null;fillComp();update()});
@@ -1048,9 +1124,9 @@ function lancForm(existing){
       const n=+$("#f-parc").value;let v=toCents($("#f-valor").value);
       const total=(n>1&&st.modo==="parcela"&&st.tipo!=="receita")?v*n:v; if(!total)return;
       const obj={id:existing?existing.id:uid(),tipo:st.tipo,valor:total,desc:$("#f-desc").value.trim(),
-        cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,data:$("#f-data").value||today(),
+        cat:st.tipo==="receita"?st.catIn:st.cat,forma:st.forma||null,data:$("#f-data").value||today(),
         parcelas:st.tipo==="receita"?1:n,comp:(st.tipo!=="receita"&&n>1)?addM(compSel.value,-((+$("#f-pa").value||1)-1)):compSel.value,criado:existing?.criado||new Date().toISOString()};
-      S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita")S.lastForma=obj.forma;
+      if(obj.tipo!=="receita")S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita")S.lastForma=obj.forma;
       closeSheet();await saveLanc(obj);toast(existing?"Lançamento atualizado":"Lançamento salvo");backToCat();
     });
     const del=$("#f-del");
@@ -1125,6 +1201,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#next")){S.month=addM(S.month,1);S.filter=null;render();return}
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   if(t.closest("#teto-open")){tetoSheet();return}
+  const dd=t.closest("[data-dia]");if(dd){diaSheet(dd.dataset.dia);return}
   if(t.closest("#busca-x")){S.busca="";render();return}
   const bt=t.closest("[data-busca-todos]");if(bt){S.buscaTodos=bt.dataset.buscaTodos==="1";document.getElementById("busca-res").innerHTML=buscaHtml();return}
   const el=t.closest("[data-edit-l]");if(el){const l=S.lanc.find(x=>x.id===el.dataset.editL);if(l)lancForm(l);return}
@@ -1145,6 +1222,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#addfixo")){fixoForm(null);return}
   if(t.closest("#addcard")){S.config.cartoes=[...S.config.cartoes,{id:"c"+uid(),nome:"Novo cartão",fechamento:0}];saveConfig();return}
   if(t.closest("#addforma")){S.config.formas=[...S.config.formas,{id:"f"+uid(),nome:"Nova forma"}];saveConfig();return}
+  if(t.closest("#addcatin")){S.config.catEntrada=[...S.config.catEntrada,{id:"e"+uid(),nome:"Nova entrada",cor:S.config.catEntrada.length%9}];saveConfig();return}
+  const dci=t.closest("[data-del-catin]");if(dci){if(S.config.catEntrada.length<2)return;S.config.catEntrada=S.config.catEntrada.filter(c=>c.id!==dci.dataset.delCatin);saveConfig();return}
   if(t.closest("#addcat")){const used=S.config.categorias.length;S.config.categorias=[...S.config.categorias,{id:"k"+uid(),nome:"Nova categoria",cor:used%9}];saveConfig();return}
   const dc=t.closest("[data-del-card]");if(dc){S.config.cartoes=S.config.cartoes.filter(c=>c.id!==dc.dataset.delCard);saveConfig();return}
   const df=t.closest("[data-del-forma]");if(df){S.config.formas=S.config.formas.filter(c=>c.id!==df.dataset.delForma);saveConfig();return}
@@ -1167,6 +1246,7 @@ app.addEventListener("change",e=>{
   else if(d.teto){S.config.teto=toCents(t.value);saveConfig()}
   else if(d.lim){const v=toCents(t.value);const fx=c=>c.id===d.lim?{...c,limite:v}:c;S.config.cartoes=S.config.cartoes.map(fx);S.config.formas=S.config.formas.map(fx);saveConfig()}
   else if(d.formaN){S.config.formas=S.config.formas.map(c=>c.id===d.formaN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
+  else if(d.catinN){S.config.catEntrada=S.config.catEntrada.map(c=>c.id===d.catinN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.catN){S.config.categorias=S.config.categorias.map(c=>c.id===d.catN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
 });
 
