@@ -143,6 +143,21 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .pg-top{display:flex;justify-content:space-between;font-size:14px;font-weight:600}
 .pg-s{font-size:12.5px;color:var(--muted)}
 .chart-tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:10px;white-space:pre-line;max-width:240px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.gm{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.gm-top{display:flex;justify-content:space-between;align-items:center}
+.gm-lbl{font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.gm-edit{border:0;background:none;color:var(--accent);font-weight:700;font-size:13px;padding:4px}
+.gm-val{font-family:var(--display);font-size:26px;line-height:1.1;color:var(--ink)}
+.gm-val small{font-family:var(--body);font-size:14px;color:var(--muted);font-weight:600}
+.gm-s{font-size:14px}
+.gm-bar{margin-top:4px}.gm-bar i{background:var(--pos)}
+.gm.warn .gm-bar i{background:var(--warn)}
+.gm-prev{font-size:13px;color:var(--muted)}
+.gm.over .gm-s{color:var(--neg)}
+.gm-done{font-size:14px;font-weight:700;color:var(--pos)}
+.gm-btn{width:100%;margin-top:4px}
+.gm-chk{display:flex;align-items:center;gap:8px;font-size:14px}
+.gm-chk input{width:18px;height:18px}
 .prev{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-left:4px solid var(--pos)}
 .prev.warn{border-left-color:var(--warn)}.prev.over{border-left-color:var(--neg)}
 .prev-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;white-space:nowrap;font-size:12.5px;color:var(--muted);font-weight:600}
@@ -350,6 +365,7 @@ function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
   formas:Array.isArray(c.formas)?c.formas:DEFAULT_CONFIG.formas,
   fixos:Array.isArray(c.fixos)?c.fixos:[],
   teto:c.teto===undefined||c.teto===null?175000:Math.max(0,+c.teto||0),
+  guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",
   metas:Array.isArray(c.metas)&&c.metas.length?c.metas:[{id:"reserva",nome:"Reserva",meta:0,inicial:0,depositos:[]},{id:"casa",nome:"Casa com a Rosinha",meta:0,inicial:0,depositos:[]}]}}
 function loadCache(){
   const c=LS.get("cm.config",null);if(c)S.config=normalize(c);
@@ -590,6 +606,7 @@ function renderMes(){
   ${statusLine()}
   <div class="busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="busca" type="search" placeholder="Buscar lançamento (ex.: Uber)" value="${esc(S.busca||"")}" autocomplete="off" aria-label="Buscar lançamentos">${S.busca?`<button id="busca-x" aria-label="Limpar busca">✕</button>`:""}</div>
   <div id="busca-res">${buscaHtml()}</div>
+  ${guardarHtml(items)}
   ${tetoHtml(items)}
   ${previsaoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
@@ -719,6 +736,68 @@ function renderPainel(){
   const cards=allFormas().filter(f=>+f.limite>0).map(f=>{const u=limiteUsado(f.id,hoje),lim=+f.limite,p=u/lim*100;return bar(esc(f.nome)+" · limite usado",u,lim,`Disponível ${money(lim-u)} de ${money(lim)}`,p>=90?"var(--neg)":p>=70?"var(--warn)":"var(--pos)")}).join("");
   const resto=`<section class="block"><h2>Metas e cartões</h2><div class="chart-card pgs">${metasH}${cards}</div></section>`;
   return`<header class="monthbar"><h1><small>Visão geral</small>Painel</h1></header>${statusLine()}${kpis}${chart1}${chart2}${chart3}${resto}`;
+}
+/* ---------- meta de guardar do mês ---------- */
+function metaGuardarMes(ym){const g=S.config.guardar||{};return Object.prototype.hasOwnProperty.call(g,ym)?+g[ym]||0:(+S.config.guardarPadrao||0)}
+function calcMes(items,ym){
+  const hoje=today(),[y,m]=ym.split("-").map(Number),nd=new Date(y,m,0).getDate();
+  const atual=ym===ymOf(hoje),passado=ym<ymOf(hoje),dia=atual?+hoje.slice(8,10):passado?nd:0,rest=nd-dia;
+  const sum=a=>a.reduce((s,i)=>s+i.valor,0);
+  const desp=items.filter(i=>i.tipo!=="receita");
+  const ent=sum(items.filter(i=>i.tipo==="receita")),fix=sum(desp.filter(i=>i.fixo)),par=sum(desp.filter(i=>i.parcela&&!i.fixo));
+  const dds=desp.filter(isDiaADia),dd=sum(dds),grandes=dds.filter(i=>i.valor>15000);
+  const ritmo=dia?Math.round((dd-sum(grandes))/dia):0,projDia=atual?dd+ritmo*rest:dd;
+  return{nd,dia,rest,atual,passado,ent,fix,par,dd,ritmo,projDia,grandes};
+}
+function guardadoNoMes(ym){for(const m of S.config.metas||[])for(const d of m.depositos||[])if(d.mesGuardar===ym)return{meta:m,dep:d};return null}
+function guardarHtml(items){
+  const ym=S.month,meta=metaGuardarMes(ym),c=calcMes(items,ym);
+  if(!meta)return`<button class="row sim-card gm-empty" id="gm-set"><span class="main"><span class="t">Definir quanto guardar este mês</span><span class="s">O app calcula quanto sobra para o dia a dia</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+  const orc=c.ent-c.fix-c.par-meta,resta=orc-c.dd,porDia=c.rest>0?Math.floor(resta/c.rest):0;
+  const projGuarda=c.ent-c.fix-c.par-c.projDia,pct=meta?Math.max(0,Math.min(100,projGuarda/meta*100)):0;
+  const feito=guardadoNoMes(ym);
+  const st=feito?"ok":orc<0?"over":(c.atual&&projGuarda<meta)||(!c.atual&&!c.passado&&false)?"warn":resta<0?"over":"ok";
+  let linha;
+  if(orc<0)linha=`Com fixos e parcelas deste mês, a meta não cabe: faltam ${money(-orc)}.`;
+  else if(c.atual)linha=resta>=0?`Você pode gastar <b class="num">${money(resta)}</b> no dia a dia até o fim do mês${c.rest>0?` · <b class="num">${money(porDia)}/dia</b>`:""}.`:`Você já passou ${money(-resta)} do que podia gastar para cumprir a meta.`;
+  else if(c.passado)linha=`Sobrou ${money(c.ent-c.fix-c.par-c.dd)} no mês.`;
+  else linha=`Para cumprir a meta, o dia a dia pode ser de até <b class="num">${money(orc)}</b> · <b class="num">${money(Math.floor(orc/c.nd))}/dia</b>.`;
+  const destino=(S.config.metas||[]).find(x=>x.id===(S.config.guardarMeta||"reserva"))||(S.config.metas||[])[0];
+  return`<section class="gm ${st}" aria-label="Meta de guardar do mês">
+    <div class="gm-top"><span class="gm-lbl">Guardar este mês</span><button class="gm-edit" id="gm-set">Editar</button></div>
+    <div class="gm-val num">${money(meta)}${destino?`<small> → ${esc(destino.nome)}</small>`:""}</div>
+    <div class="gm-s">${linha}</div>
+    ${c.atual&&orc>=0?`<span class="bar gm-bar"><i style="width:${pct.toFixed(1)}%"></i></span><div class="gm-prev num">${projGuarda>=meta?`No ritmo atual você guarda <b>${money(projGuarda)}</b> ✓`:(projGuarda>0?`No ritmo atual você guarda só <b>${money(projGuarda)}</b> de ${money(meta)}`:`No ritmo atual o mês fecha em <b class="negtxt">−${money(-projGuarda)}</b> e não sobra nada para guardar`)}</div>`:""}
+    ${feito?`<div class="gm-done">✓ ${money(feito.dep.valor)} registrado em ${esc(feito.meta.nome)}</div>`:(c.atual||c.passado)&&destino?`<button class="btn gm-btn" id="gm-done">Guardei ${money(meta)} em ${esc(destino.nome)}</button>`:""}
+  </section>`;
+}
+function guardarSheet(){
+  const ym=S.month,atual=metaGuardarMes(ym),metas=S.config.metas||[];
+  const st={dest:S.config.guardarMeta||(metas[0]||{}).id,todos:!(S.config.guardar&&Object.prototype.hasOwnProperty.call(S.config.guardar,ym))};
+  openSheet(`<h3>Guardar em ${esc(ymLabel(ym))}</h3>
+    <p class="note">Esse valor sai da renda como uma conta fixa. O que sobra vira o seu limite do dia a dia.</p>
+    <div class="amount"><span>R$</span><input id="gm-v" inputmode="decimal" placeholder="0,00" value="${esc(centsToInput(atual))}" aria-label="Valor a guardar"></div>
+    <div id="gm-calc" class="hint"></div>
+    <div><label class="f">Vai para a meta</label><div class="chips" id="gm-dest" style="margin-top:6px">${chipsHtml(metas,st.dest,"dest",false)}</div></div>
+    <label class="gm-chk"><input type="checkbox" id="gm-all" ${st.todos?"checked":""}> Usar esse valor também nos próximos meses</label>
+    <div class="actions"><button class="btn ghost" id="gm-zero">Sem meta</button><button class="btn" id="gm-ok">Salvar</button></div>`,root=>{
+    const $=s=>root.querySelector(s);
+    const its=monthItems(ym),c=calcMes(its,ym);
+    const calc=()=>{const v=toCents($("#gm-v").value),orc=c.ent-c.fix-c.par-v;
+      $("#gm-calc").innerHTML=v?(orc<0?`<b class="negtxt">Não cabe:</b> fixos e parcelas já somam ${money(c.fix+c.par)} de ${money(c.ent)}.`:`Sobra <b>${money(orc)}</b> para o dia a dia no mês (${money(Math.floor(orc/c.nd))}/dia)${c.atual?`. Você já gastou ${money(c.dd)}.`:"."}`):"Digite quanto quer guardar."};
+    calc();$("#gm-v").addEventListener("input",calc);setTimeout(()=>$("#gm-v").focus(),60);
+    $("#gm-dest").addEventListener("click",e=>{const b=e.target.closest("[data-dest]");if(!b)return;st.dest=b.dataset.dest;root.querySelectorAll("#gm-dest .chip").forEach(x=>x.classList.toggle("on",x===b))});
+    const salvar=v=>{const g={...(S.config.guardar||{})};
+      if($("#gm-all").checked){S.config.guardarPadrao=v;for(const k of Object.keys(g))if(k>=ym)delete g[k]}else g[ym]=v;
+      S.config.guardar=g;S.config.guardarMeta=st.dest;closeSheet();saveConfig();toast(v?"Meta do mês salva":"Meta removida")};
+    $("#gm-ok").addEventListener("click",()=>salvar(toCents($("#gm-v").value)));
+    $("#gm-zero").addEventListener("click",()=>salvar(0));
+  });
+}
+function registrarGuardado(){
+  const ym=S.month,v=metaGuardarMes(ym),m=(S.config.metas||[]).find(x=>x.id===(S.config.guardarMeta||"reserva"))||(S.config.metas||[])[0];
+  if(!v||!m||guardadoNoMes(ym))return;
+  saveMeta({...m,depositos:[...(m.depositos||[]),{id:uid(),mes:ym,valor:v,nota:"Meta do mês",mesGuardar:ym}]});toast(`${money(v)} registrado em ${m.nome}`);
 }
 function previsaoHtml(items){
   const hoje=today();if(S.month!==ymOf(hoje))return"";
@@ -1232,6 +1311,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#next")){S.month=addM(S.month,1);S.filter=null;render();return}
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   if(t.closest("#teto-open")){tetoSheet();return}
+  if(t.closest("#gm-set")){guardarSheet();return}
+  if(t.closest("#gm-done")){registrarGuardado();return}
   const dd=t.closest("[data-dia]");if(dd){diaSheet(dd.dataset.dia);return}
   if(t.closest("#busca-x")){S.busca="";render();return}
   const bt=t.closest("[data-busca-todos]");if(bt){S.buscaTodos=bt.dataset.buscaTodos==="1";document.getElementById("busca-res").innerHTML=buscaHtml();return}
