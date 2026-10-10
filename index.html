@@ -143,6 +143,22 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .pg-top{display:flex;justify-content:space-between;font-size:14px;font-weight:600}
 .pg-s{font-size:12.5px;color:var(--muted)}
 .chart-tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12.5px;line-height:1.45;padding:8px 10px;border-radius:10px;white-space:pre-line;max-width:240px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.streak{display:block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.streak.on{color:var(--ink)}
+.ax-top{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ax-top div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
+.ax-top span{font-size:12px;color:var(--muted);font-weight:600}
+.ax-top b{font-family:var(--display);font-size:20px}
+.ax-ano{display:block;font-size:10.5px;color:var(--muted);font-weight:600;text-align:right}
+.cx-list{display:flex;flex-direction:column;gap:10px}
+.cx{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.cx-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cx-name{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--ink);text-align:left}
+.cx-name small,.cx-top small{font-weight:500;color:var(--muted)}
+.cx-bot{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.cx-btn{border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:13px;padding:7px 10px;white-space:nowrap}
+.cx-ok{color:var(--pos);font-weight:700;white-space:nowrap}
+.cx-sug{display:flex;flex-wrap:wrap;gap:6px}
 .gm{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .gm-top{display:flex;justify-content:space-between;align-items:center}
 .gm-lbl{font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
@@ -365,6 +381,7 @@ function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
   formas:Array.isArray(c.formas)?c.formas:DEFAULT_CONFIG.formas,
   fixos:Array.isArray(c.fixos)?c.fixos:[],
   teto:c.teto===undefined||c.teto===null?175000:Math.max(0,+c.teto||0),
+  caixinhas:Array.isArray(c.caixinhas)?c.caixinhas:[],
   guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",
   metas:Array.isArray(c.metas)&&c.metas.length?c.metas:[{id:"reserva",nome:"Reserva",meta:0,inicial:0,depositos:[]},{id:"casa",nome:"Casa com a Rosinha",meta:0,inicial:0,depositos:[]}]}}
 function loadCache(){
@@ -466,7 +483,7 @@ function tetoHtml(items){
   return`<button class="teto ${st}" id="teto-open" aria-label="Teto do dia a dia: ${esc(msg)}">
     <span class="teto-top"><span class="teto-lbl">Dia a dia</span><span class="teto-val num"><b>${money(gasto)}</b> de ${money(teto)}</span></span>
     <span class="teto-bar"><i style="width:${Math.min(100,pct).toFixed(1)}%"></i><em style="left:80%"></em></span>
-    <span class="teto-msg num">${st!=="ok"?"⚠ ":""}${esc(msg)}${extra}</span></button>`;
+    <span class="teto-msg num">${st!=="ok"?"⚠ ":""}${esc(msg)}${extra}</span>${streakHtml()}</button>`;
 }
 function tetoSheet(){
   const items=monthItems(S.month).filter(isDiaADia).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
@@ -737,6 +754,84 @@ function renderPainel(){
   const resto=`<section class="block"><h2>Metas e cartões</h2><div class="chart-card pgs">${metasH}${cards}</div></section>`;
   return`<header class="monthbar"><h1><small>Visão geral</small>Painel</h1></header>${statusLine()}${kpis}${chart1}${chart2}${chart3}${resto}`;
 }
+/* ---------- sequência no teto ---------- */
+function sequenciaTeto(){
+  const teto=+S.config.teto||0;if(!teto)return null;
+  const gastoDia={};let ini=null;
+  for(const l of S.lanc){if(l.tipo==="receita"||!l.data||(+l.parcelas||1)>1)continue;gastoDia[l.data]=(gastoDia[l.data]||0)+l.valor;
+    if(l.criado&&l.criado.slice(0,10)<=l.data&&(!ini||l.data<ini))ini=l.data}
+  if(!ini)return null;
+  const lim=ds=>{const[y,m]=ds.split("-").map(Number);return Math.round(teto/new Date(y,m,0).getDate())};
+  const dt=s=>new Date(s+"T12:00:00"),fmt=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  const hoje=today();let atual=0,rec=0,run=0;
+  for(let d=dt(ini);fmt(d)<=hoje;d.setDate(d.getDate()+1)){const ds=fmt(d),ok=(gastoDia[ds]||0)<=lim(ds);
+    if(ok){run++;rec=Math.max(rec,run)}else run=0}
+  atual=run;
+  const hojeOk=(gastoDia[hoje]||0)<=lim(hoje);
+  return{atual,rec,lim:lim(hoje),hojeOk,gastoHoje:gastoDia[hoje]||0};
+}
+function streakHtml(){
+  if(S.month!==ymOf(today()))return"";const s=sequenciaTeto();if(!s)return"";
+  const L=money(s.lim).replace(/,00$/,"");
+  const txt=s.atual>0?`🔥 ${s.atual} ${s.atual===1?"dia":"dias seguidos"} gastando até ${L}`:`Hoje passou de ${L}. Amanhã começa uma nova sequência.`;
+  return`<span class="streak ${s.atual>0?"on":""}">${txt}${s.rec>1?` · recorde: ${s.rec} dias`:""}</span>`;
+}
+/* ---------- raio-x das assinaturas ---------- */
+function ehAssin(cat){const c=catById(cat);return cat==="assin"||(c&&/assin/i.test(c.nome))}
+function assinaturasHtml(){
+  const ini=ymOf(today()),meses=Array.from({length:12},(_,k)=>addM(ini,k));
+  const rows=[];
+  for(const f of S.config.fixos){if(f.tipo==="receita"||!ehAssin(f.cat))continue;
+    let ano=0;for(const ym of meses){if(f.desde&&ym<f.desde)continue;if(f.ate&&ym>f.ate)continue;const ex=f.excecoes||{};if(Object.prototype.hasOwnProperty.call(ex,ym)&&ex[ym]===null)continue;ano+=ex[ym]!=null?ex[ym]:f.valor}
+    rows.push({nome:f.nome,mes:f.valor,ano,info:f.ate?`termina em ${ymShort(f.ate)}`:f.desde&&f.desde>ini?`começa em ${ymShort(f.desde)}`:"todo mês",attr:`data-fixo="${esc(f.id)}"`,cat:f.cat})}
+  for(const l of S.lanc){if(l.tipo==="receita"||!ehAssin(l.cat))continue;const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data);
+    let ano=0,ult=addM(c0,n-1),mesV=0;for(let i=0;i<n;i++){const ym=addM(c0,i);if(meses.includes(ym)){ano+=parcelaValor(l.valor,n,i);if(ym===ini)mesV=parcelaValor(l.valor,n,i)}}
+    if(!ano)continue;
+    rows.push({nome:l.desc||"Assinatura",mes:mesV||parcelaValor(l.valor,n,1),ano,info:n>1?`${n}x · última em ${ymShort(ult)}`:"pagamento único",attr:`data-edit-l="${esc(l.id)}"`,cat:l.cat})}
+  if(!rows.length)return"";
+  rows.sort((a,b)=>b.ano-a.ano);
+  const tot=rows.reduce((s,r)=>s+r.ano,0);
+  return`<section class="block"><h2>Raio-x das assinaturas</h2>
+    <div class="ax-top"><div><span>Nos próximos 12 meses</span><b class="num">${money(tot)}</b></div><div><span>Média por mês</span><b class="num">${money(Math.round(tot/12))}</b></div></div>
+    <div class="list">${rows.map(r=>`<button class="row" ${r.attr}><span class="dot" style="background:${catColor(r.cat)}"></span><span class="main"><span class="t">${esc(r.nome)}</span><span class="s">${money(r.mes)}/mês · ${esc(r.info)}</span></span><span class="v num">${money(r.ano)}<small class="ax-ano">em 12 meses</small></span></button>`).join("")}</div>
+    <p class="note">Conta só o que cai nos próximos 12 meses. Toque numa assinatura para editar ou definir quando ela termina.</p></section>`;
+}
+/* ---------- caixinhas ---------- */
+function caixCalc(c){const hoje=ymOf(today());const guard=(c.depositos||[]).reduce((s,d)=>s+(+d.valor||0),0);
+  const jaMes=(c.depositos||[]).some(d=>d.mes===hoje),depMes=(c.depositos||[]).filter(d=>d.mes===hoje).reduce((s,d)=>s+(+d.valor||0),0);
+  const falta=Math.max(0,(+c.alvo||0)-guard),meses=Math.max(1,diffM(c.mes,hoje)-(jaMes?1:0)),porMes=falta?Math.ceil(falta/meses):0;
+  return{guard,falta,meses,porMes,jaMes,depMes,vencida:c.mes<hoje}}
+function caixMensal(){return(S.config.caixinhas||[]).reduce((s,c)=>{const k=caixCalc(c);return s+(k.jaMes?k.depMes:k.vencida?0:k.porMes)},0)}
+function caixinhasHtml(){
+  const cx=S.config.caixinhas||[];
+  const rows=cx.map(c=>{const k=caixCalc(c),p=c.alvo?Math.min(100,k.guard/c.alvo*100):0;
+    return`<div class="cx" data-cx="${esc(c.id)}"><div class="cx-top"><button class="cx-name" data-cx-edit="${esc(c.id)}">${esc(c.nome)} <small>· ${esc(ymLabel(c.mes))}</small></button><b class="num">${money(k.guard)} <small>de ${money(c.alvo)}</small></b></div>
+      <span class="bar"><i style="width:${p.toFixed(1)}%;background:var(--pos)"></i></span>
+      <div class="cx-bot"><span>${k.falta<=0?"✓ Completa":k.vencida?"Data passou":`Guarde <b class="num">${money(k.porMes)}/mês</b> por ${k.meses} ${k.meses===1?"mês":"meses"}`}</span>
+      ${k.falta>0&&!k.vencida?(k.jaMes?`<span class="cx-ok">✓ guardado este mês</span>`:`<button class="cx-btn" data-cx-dep="${esc(c.id)}">Guardei ${money(Math.min(k.porMes,k.falta))}</button>`):""}</div></div>`}).join("");
+  return`<section class="block"><h2>Caixinhas</h2>
+    <p class="note" style="margin:0">Separe um pouco por mês para gastos que você já sabe que vêm. O valor mensal sai do seu limite do dia a dia, junto com a meta de guardar.</p>
+    ${cx.length?`<div class="cx-list">${rows}</div><p class="note" style="margin:0">Total por mês: <b class="num">${money(caixMensal())}</b></p>`:""}
+    <div class="cx-sug">${["Natal","Aniversário da Rosinha","Viagem","IPVA"].filter(n=>!cx.some(c=>c.nome===n)).map(n=>`<button class="chip" data-cx-new="${esc(n)}">+ ${esc(n)}</button>`).join("")}<button class="chip" data-cx-new="">+ Outra</button></div></section>`;
+}
+function caixSheet(c,nomeSug){
+  const novo=!c;c=c||{id:"cx"+uid(),nome:nomeSug||"",alvo:0,mes:nomeSug==="Natal"?ymOf(today()).slice(0,4)+"-12":addM(ymOf(today()),6),depositos:[]};
+  openSheet(`<h3>${novo?"Nova caixinha":"Editar caixinha"}</h3>
+    <label class="f">Para quê<input class="inp" id="cx-n" value="${esc(c.nome)}" placeholder="Ex.: Natal"></label>
+    <div class="amount"><span>R$</span><input id="cx-v" inputmode="decimal" placeholder="0,00" value="${esc(centsToInput(c.alvo))}" aria-label="Valor total"></div>
+    <label class="f">Até quando<input class="inp" type="month" id="cx-m" value="${esc(c.mes)}"></label>
+    <div class="hint" id="cx-h"></div>
+    <div class="actions">${novo?"":`<button class="btn danger" id="cx-del">Excluir</button>`}<button class="btn" id="cx-ok">Salvar</button></div>`,root=>{
+    const $=s=>root.querySelector(s);
+    const upd=()=>{const v=toCents($("#cx-v").value),m=$("#cx-m").value||c.mes,k=caixCalc({...c,alvo:v,mes:m});$("#cx-h").innerHTML=v?`Guarde <b>${money(k.porMes)}</b> por mês durante ${k.meses} ${k.meses===1?"mês":"meses"}.`:"Digite o valor total."};
+    upd();$("#cx-v").addEventListener("input",upd);$("#cx-m").addEventListener("change",upd);
+    $("#cx-ok").addEventListener("click",()=>{const o={...c,nome:$("#cx-n").value.trim()||"Caixinha",alvo:toCents($("#cx-v").value),mes:$("#cx-m").value||c.mes};if(!o.alvo)return;
+      S.config.caixinhas=[...(S.config.caixinhas||[]).filter(x=>x.id!==o.id),o];closeSheet();saveConfig();toast("Caixinha salva")});
+    const d=$("#cx-del");if(d)d.addEventListener("click",()=>{S.config.caixinhas=(S.config.caixinhas||[]).filter(x=>x.id!==c.id);closeSheet();saveConfig();toast("Caixinha excluída")});
+  });
+}
+function caixDep(id){const c=(S.config.caixinhas||[]).find(x=>x.id===id);if(!c)return;const k=caixCalc(c);if(k.jaMes||!k.falta)return;
+  const v=Math.min(k.porMes,k.falta);S.config.caixinhas=S.config.caixinhas.map(x=>x.id===id?{...x,depositos:[...(x.depositos||[]),{id:uid(),mes:ymOf(today()),valor:v}]}:x);saveConfig();toast(`${money(v)} guardado em ${c.nome}`)}
 /* ---------- meta de guardar do mês ---------- */
 function metaGuardarMes(ym){const g=S.config.guardar||{};return Object.prototype.hasOwnProperty.call(g,ym)?+g[ym]||0:(+S.config.guardarPadrao||0)}
 function calcMes(items,ym){
@@ -753,7 +848,7 @@ function guardadoNoMes(ym){for(const m of S.config.metas||[])for(const d of m.de
 function guardarHtml(items){
   const ym=S.month,meta=metaGuardarMes(ym),c=calcMes(items,ym);
   if(!meta)return`<button class="row sim-card gm-empty" id="gm-set"><span class="main"><span class="t">Definir quanto guardar este mês</span><span class="s">O app calcula quanto sobra para o dia a dia</span></span><span class="chev" aria-hidden="true">›</span></button>`;
-  const orc=c.ent-c.fix-c.par-meta,resta=orc-c.dd,porDia=c.rest>0?Math.floor(resta/c.rest):0;
+  const cxm=c.atual||!c.passado?caixMensal():0,orc=c.ent-c.fix-c.par-meta-cxm,resta=orc-c.dd,porDia=c.rest>0?Math.floor(resta/c.rest):0;
   const projGuarda=c.ent-c.fix-c.par-c.projDia,pct=meta?Math.max(0,Math.min(100,projGuarda/meta*100)):0;
   const feito=guardadoNoMes(ym);
   const st=feito?"ok":orc<0?"over":(c.atual&&projGuarda<meta)||(!c.atual&&!c.passado&&false)?"warn":resta<0?"over":"ok";
@@ -766,7 +861,7 @@ function guardarHtml(items){
   return`<section class="gm ${st}" aria-label="Meta de guardar do mês">
     <div class="gm-top"><span class="gm-lbl">Guardar este mês</span><button class="gm-edit" id="gm-set">Editar</button></div>
     <div class="gm-val num">${money(meta)}${destino?`<small> → ${esc(destino.nome)}</small>`:""}</div>
-    <div class="gm-s">${linha}</div>
+    <div class="gm-s">${linha}</div>${cxm?`<div class="gm-prev">Já descontando ${money(cxm)} das caixinhas.</div>`:""}
     ${c.atual&&orc>=0?`<span class="bar gm-bar"><i style="width:${pct.toFixed(1)}%"></i></span><div class="gm-prev num">${projGuarda>=meta?`No ritmo atual você guarda <b>${money(projGuarda)}</b> ✓`:(projGuarda>0?`No ritmo atual você guarda só <b>${money(projGuarda)}</b> de ${money(meta)}`:`No ritmo atual o mês fecha em <b class="negtxt">−${money(-projGuarda)}</b> e não sobra nada para guardar`)}</div>`:""}
     ${feito?`<div class="gm-done">✓ ${money(feito.dep.valor)} registrado em ${esc(feito.meta.nome)}</div>`:(c.atual||c.passado)&&destino?`<button class="btn gm-btn" id="gm-done">Guardei ${money(meta)} em ${esc(destino.nome)}</button>`:""}
   </section>`;
@@ -899,6 +994,7 @@ function renderMetas(){
   </section>
   <section class="block"><h2>Histórico</h2><div class="list">${hist}</div>
   ${+m.inicial?`<p class="note">Inclui ${money(+m.inicial)} que já estavam guardados quando a meta foi criada.</p>`:""}</section>
+  ${caixinhasHtml()}
   <section class="block"><h2>Simulação</h2>
     <button class="row sim-card" id="sim-open"><span class="main"><span class="t">E se eu for promovido?</span><span class="s">Veja quanto a mais você guarda nos próximos 12 meses</span></span><span class="chev" aria-hidden="true">›</span></button>
     <button class="row sim-card" id="compra-open"><span class="main"><span class="t">E se eu fizer uma compra?</span><span class="s">Veja se cabe no limite e como fica cada mês</span></span><span class="chev" aria-hidden="true">›</span></button></section>`;
@@ -1037,7 +1133,8 @@ function renderFixos(){
   <p class="note">Contas e rendas que se repetem. Elas entram sozinhas em cada mês, e você pode ajustar o valor ou pular um mês específico tocando nelas na aba Mês.</p>
   <section class="block"><h2>Rendas · ${money(tot(rec))}</h2><div class="list">${rec.length?rec.map(row).join(""):`<div class="empty">Nenhuma renda fixa. Adicione seu salário.</div>`}</div></section>
   <section class="block"><h2>Contas fixas · ${money(tot(des))}</h2><div class="list">${des.length?des.map(row).join(""):`<div class="empty">Nenhuma conta fixa ainda.</div>`}</div></section>
-  <button class="add" id="addfixo">+ Novo fixo</button>`;
+  <button class="add" id="addfixo">+ Novo fixo</button>
+  ${assinaturasHtml()}`;
 }
 function renderAjustes(){
   const C=S.config;
@@ -1312,6 +1409,9 @@ app.addEventListener("click",e=>{
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   if(t.closest("#teto-open")){tetoSheet();return}
   if(t.closest("#gm-set")){guardarSheet();return}
+  const cxn=t.closest("[data-cx-new]");if(cxn){caixSheet(null,cxn.dataset.cxNew);return}
+  const cxe=t.closest("[data-cx-edit]");if(cxe){caixSheet((S.config.caixinhas||[]).find(x=>x.id===cxe.dataset.cxEdit));return}
+  const cxd=t.closest("[data-cx-dep]");if(cxd){caixDep(cxd.dataset.cxDep);return}
   if(t.closest("#gm-done")){registrarGuardado();return}
   const dd=t.closest("[data-dia]");if(dd){diaSheet(dd.dataset.dia);return}
   if(t.closest("#busca-x")){S.busca="";render();return}
