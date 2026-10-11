@@ -131,13 +131,60 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .lg-line{width:14px;height:2px;background:var(--ink);border-radius:2px;display:inline-block}
 .ch-tab summary{font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
 .cmp{display:flex;flex-direction:column;gap:12px}
+.headrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.relbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-weight:700;font-size:13px;border-radius:20px;padding:5px 12px;flex:none}
+.relbtn svg{width:16px;height:16px}
+.qp{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;border-left:4px solid var(--pos)}
+.qp.warn{border-left-color:var(--warn)}.qp.over{border-left-color:var(--neg)}
+.qp-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.qp-lbl{white-space:nowrap;font-size:12.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.qp-val{font-family:var(--display);font-size:34px;line-height:1.05;color:var(--ink)}
+.qp-val small{font-family:var(--body);font-size:15px;color:var(--muted);font-weight:600}
+.qp.over .qp-val{color:var(--neg)}
+.qp-s{font-size:14px}
+.qp-teto{display:flex;flex-direction:column;gap:6px;background:var(--sunk);border:0;border-radius:10px;padding:10px 12px;text-align:left;width:100%;color:var(--ink)}
+.qp-teto .teto-top{font-size:13px}
+.qp-teto .teto-bar{background:var(--surface)}
+.qp-teto .teto-bar em{background:var(--sunk)}
+.qp-teto.warn .teto-bar i{background:var(--warn)}.qp-teto.over .teto-bar i{background:var(--neg)}
+.qp-teto .streak{margin-top:0}
+.qp-more{border-top:1px solid var(--line);padding-top:8px}
+.qp-more summary{cursor:pointer;font-size:13.5px;font-weight:700;color:var(--accent);list-style:none;display:flex;justify-content:space-between}
+.qp-more summary::-webkit-details-marker{display:none}
+.qp-more summary::after{content:"▾";transition:transform .2s}
+.qp-more[open] summary::after{transform:rotate(180deg)}
+.qp-body{display:flex;flex-direction:column;gap:8px;margin-top:10px;font-size:14px}
+.qp-tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+.qp-tips div{background:var(--sunk);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:1px}
+.qp-tips span{font-size:12px;color:var(--muted);font-weight:600}
+.qp-tips b{font-size:15px}
+.qp-tips .on{outline:2px solid var(--accent);outline-offset:-2px}
+.row .v small{display:block;font-size:11px;color:var(--muted);font-weight:600;text-align:right}
+.fx-det{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.fx-det summary{cursor:pointer;padding:12px 14px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;list-style:none}
+.fx-det summary::-webkit-details-marker{display:none}
+.fx-det summary::after{content:"▾";color:var(--muted)}
+.fx-det[open] summary::after{content:"▴"}
+.fx-det .list{border:0;border-top:1px solid var(--line);border-radius:0}
+.secbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mininav{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.mininav .iconbtn{width:30px;height:30px;font-size:15px}
+.cat-sai{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;color:var(--muted)}
+.cat-sai b{font-family:var(--display);font-size:22px;color:var(--ink)}
+.pie.solo .pie-leg{display:none}
+.io span.delta{display:inline-block;margin-left:4px;font-size:11px;vertical-align:1px}
+.gm-edit{text-align:right}
+.pf-meses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pf-meses div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.pf-meses span{font-size:12px;color:var(--muted);font-weight:600}
+.pf-meses b{font-size:15px}
 .cmp-row{display:flex;flex-direction:column;gap:4px;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit}
 .cmp-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
 .cmp-n{display:inline-flex;align-items:center;gap:7px;min-width:0}
 .cmp-n .delta{margin-left:2px}
 .cmp-bar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;display:block}
 .cmp-bar i{display:block;height:100%;border-radius:4px}
-.cmp-bar.prev{height:4px}.cmp-bar.prev i{background:var(--free)}
+.cmp-bar.ant{height:4px}.cmp-bar.ant i{background:var(--free)}
 .pgs{gap:14px}
 .pg{display:flex;flex-direction:column;gap:5px}
 .pg-top{display:flex;justify-content:space-between;font-size:14px;font-weight:600}
@@ -330,7 +377,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:
     <button id="nav-painel" data-view="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Painel</button>
     <button id="nav-metas" data-view="metas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>Metas</button>
     <button id="nav-add" class="fab" aria-label="Novo lançamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button id="nav-fixos" data-view="fixos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Fixos</button>
+    <button id="nav-fixos" data-view="fixos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Contas</button>
     <button id="nav-ajustes" data-view="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Ajustes</button>
   </div>
 </nav>
@@ -501,7 +548,7 @@ function tetoSheet(){
     });
   });
 }
-function pieHtml(cats,ent,sai){
+function pieHtml(cats,ent,sai,solo){
   const livre=Math.max(0,ent-sai),tot=cats.reduce((a,[,v])=>a+v,0)+livre;
   if(!tot)return"";
   const slices=[...cats.map(([k,v])=>({k,v,nome:(catById(k)||{nome:"Outros"}).nome,cor:catColor(k)})),...(livre?[{k:null,v:livre,nome:"Disponível",cor:"var(--free)"}]:[])];
@@ -515,7 +562,7 @@ function pieHtml(cats,ent,sai){
     return`<path d="${d}" fill="${sl.cor}" stroke="var(--surface)" stroke-width="2" stroke-linejoin="round" ${sl.k?`data-catopen="${esc(sl.k)}" class="pie-s"`:""}><title>${esc(sl.nome)}: ${money(sl.v)} (${pct}%)</title></path>`}).join("");
   const usado=ent?Math.round(sai/ent*100):100;
   const leg=slices.map(sl=>`<${sl.k?`button data-catopen="${esc(sl.k)}"`:"div"} class="pie-l"><span class="dot" style="background:${sl.cor}"></span><span class="pie-n">${esc(sl.nome)}</span><span class="pie-v num">${money(sl.v)}</span><span class="pie-p num">${(sl.v/tot*100).toFixed(0)}%</span></${sl.k?"button":"div"}>`).join("");
-  return`<div class="pie"><svg viewBox="0 0 160 160" role="img" aria-label="Divisão da renda do mês por categoria">${paths}
+  return`<div class="pie${solo?" solo":""}"><svg viewBox="0 0 160 160" role="img" aria-label="Divisão da renda do mês por categoria">${paths}
     <text x="80" y="76" text-anchor="middle" class="pie-c1">${ent?usado+"%":"—"}</text><text x="80" y="95" text-anchor="middle" class="pie-c2">${ent?"da renda gasta":"sem renda"}</text></svg>
     <div class="pie-leg">${leg}</div></div>`;
 }
@@ -620,44 +667,84 @@ function renderMes(){
     <h1><small>Custo mensal</small>${ymLabel(S.month)}</h1>
     <button class="iconbtn" id="next" aria-label="Próximo mês">›</button>
   </header>
-  ${statusLine()}
-  <div class="busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="busca" type="search" placeholder="Buscar lançamento (ex.: Uber)" value="${esc(S.busca||"")}" autocomplete="off" aria-label="Buscar lançamentos">${S.busca?`<button id="busca-x" aria-label="Limpar busca">✕</button>`:""}</div>
-  <div id="busca-res">${buscaHtml()}</div>
-  ${guardarHtml(items)}
-  ${tetoHtml(items)}
-  ${previsaoHtml(items)}
+  <div class="headrow">${statusLine()}<button class="relbtn" id="rel-open" aria-label="Relatório do mês: enviar no WhatsApp ou salvar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg>Relatório</button></div>
   <section class="summary" aria-label="Resumo do mês">
-    ${pieHtml(cats,ent,sai)}
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
     <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
-    <div><div class="meter-cap num"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
+    <div><span class="meter">${meter}</span><div class="meter-cap num" style="margin-top:6px"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
-  <button class="row sim-card rel-open" id="rel-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg><span class="main"><span class="t">Relatório do mês</span><span class="s">Enviar no WhatsApp ou salvar</span></span><span class="chev" aria-hidden="true">›</span></button>
+  ${gastarHtml(items)}
 
   ${calHtml()}
 
-  ${formasRows.length?`<section class="block"><h2>Por cartão e forma de pagamento</h2><div class="list">
-    ${formasRows.map(([k,v])=>{const f=formaById(k);const on=S.filter===k;const lim=f&&+f.limite>0?+f.limite:0;
-      let extra="";
-      if(lim){const u=limiteUsado(k,S.month),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
-        extra=`<span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span>
-        <span class="s num limtxt ${d<0?"negtxt":""}">Disponível <b>${money(d)}</b> de ${money(lim)}</span>`}
-      return`<button class="row ${on?"active":""}" data-filter="${esc(k)}"><span class="main"><span class="t">${esc(f?f.nome:"Não informado")}</span>
-      <span class="s">${lim?"Gasto no mês":(f&&f.cartao?(f.fechamento?"Fatura fecha dia "+f.fechamento:"Cartão"):"À vista")}${on?" · filtrando":""}</span>${extra}</span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
-  </div>${formasRows.some(([k])=>+(formaById(k)||{}).limite>0)?`<p class="note">O limite de cada mês conta a fatura daquele mês e as parcelas que ainda vão cair. O que foi pago nos meses anteriores volta para o limite. Compras no Débito, Pix ou Dinheiro não usam limite.</p>`:""}</section>`:""}
-
-  ${cats.length?`<section class="block"><h2>Por categoria</h2><div class="list">
-    ${cats.map(([k,v])=>{const c=catById(k);return`<button class="row" data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="main"><span class="t">${esc(c?c.nome:"Outros")}${delta(v,prevC[k])}</span>
-      <span class="bar"><i style="width:${(v/maxC*100).toFixed(1)}%;background:${catColor(k)}"></i></span></span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
-  </div>${saiAnt?`<p class="note">Setas: comparado com ${esc(antNome)} (${money(saiAnt)} em saídas). ↑ gastou mais · ↓ gastou menos.${sumirom.length?" Sem gasto este mês em: "+esc(sumirom.map(k=>(catById(k)||{nome:"Outros"}).nome).join(", "))+".":""}</p>`:""}</section>`:""}
+  ${cartoesMesHtml()}
 
   <section class="block"><h2>Lançamentos</h2>
+    <div class="busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="busca" type="search" placeholder="Buscar lançamento (ex.: Uber)" value="${esc(S.busca||"")}" autocomplete="off" aria-label="Buscar lançamentos">${S.busca?`<button id="busca-x" aria-label="Limpar busca">✕</button>`:""}</div>
+    <div id="busca-res">${buscaHtml()}</div>
     ${S.filter?`<button class="filterchip" id="clearfilter">${esc((formaById(S.filter)||{nome:"Não informado"}).nome)} ✕</button>`:""}
     <div class="list">${lancHtml}</div>
+    ${fixos.length?`<details class="fx-det"${S.fxOpen?" open":""}><summary><span>Contas fixas do mês</span><span class="num">${money(fixos.reduce((a,i)=>a+i.valor,0))}</span></summary><div class="list">${fixos.map(rowItem).join("")}</div></details>`:""}
   </section>
-
-  ${fixos.length?`<section class="block"><h2>Fixos do mês</h2><div class="list">${fixos.map(rowItem).join("")}</div></section>`:""}
   `;
+}
+/* ---------- quanto posso gastar (meta + teto + previsão) ---------- */
+function gastarHtml(items){
+  const ym=S.month,c=calcMes(items,ym),teto=+S.config.teto||0,meta=metaGuardarMes(ym);
+  const cxm=c.passado?0:caixMensal();
+  const base=c.ent-c.fix-c.par-cxm;            // o que sobra depois de fixos, parcelas e caixinhas
+  const orcMeta=base-meta;                      // dia a dia possível cumprindo a meta
+  const lims=[{k:"meta",v:orcMeta}];if(teto)lims.push({k:"teto",v:teto});
+  const bind=lims.reduce((a,b)=>b.v<a.v?b:a);
+  const porque=bind.k==="teto"?"pelo teto do dia a dia":meta?"pela meta de guardar":"pela sua renda do mês";
+  const dias=c.atual?c.rest+1:c.nd;             // inclui hoje
+  const resta=bind.v-c.dd,porDia=dias>0?Math.floor(resta/dias):0;
+  const feito=guardadoNoMes(ym);
+  const destino=(S.config.metas||[]).find(x=>x.id===(S.config.guardarMeta||"reserva"))||(S.config.metas||[])[0];
+  const res=c.ent-c.fix-c.par-c.projDia;        // resultado previsto do mês (antes de guardar)
+  let val,sub,st="ok";
+  if(c.passado){const sob=c.ent-c.fix-c.par-c.dd;val=`${money(sob)}`;sub=sob>=0?"sobraram no mês, antes de guardar.":"o mês fechou no vermelho.";st=sob<0?"over":meta&&sob<meta?"warn":"ok"}
+  else if(c.atual){
+    if(resta>0){val=`${money(porDia)}<small>/dia</small>`;sub=`<b class="num">${money(resta)}</b> até o fim do mês, limitado ${porque}.`}
+    else{val=`${money(0)}<small>/dia</small>`;sub=`Você já passou <b class="num">${money(-resta)}</b> do limite definido ${porque}.`;st="over"}
+    if(st==="ok"&&((teto&&c.projDia>teto)||(meta&&res-cxm<meta)||res<0))st="warn";
+  }else{
+    if(bind.v>0){val=`${money(Math.floor(bind.v/c.nd))}<small>/dia</small>`;sub=`<b class="num">${money(bind.v)}</b> para o dia a dia no mês, limitado ${porque}.`}
+    else{val=`${money(0)}<small>/dia</small>`;sub=meta?`Com fixos e parcelas deste mês, a meta não cabe: faltam ${money(-orcMeta)}.`:`Fixos e parcelas já usam toda a renda do mês.`;st="over"}
+  }
+  // linha do teto (abre a lista do dia a dia)
+  let tetoH="";
+  if(teto){const pct=c.dd/teto*100,ts=pct>=100?"over":pct>=80?"warn":"ok";
+    tetoH=`<button class="qp-teto ${ts}" id="teto-open" aria-label="Ver compras do dia a dia"><span class="teto-top"><span class="teto-lbl">Dia a dia</span><span class="teto-val num"><b>${money(c.dd)}</b> de ${money(teto)}</span></span>
+      <span class="teto-bar"><i style="width:${Math.min(100,pct).toFixed(1)}%"></i><em style="left:80%"></em></span>${streakHtml()}</button>`}
+  // detalhes
+  let det="";
+  if(c.atual&&c.dia>=1){
+    const pd=v=>c.rest+1>0?Math.floor((v-c.dd)/(c.rest+1)):0;
+    const tip=(t,v,k)=>`<div class="${bind.k===k?"on":""}"><span>${t}</span><b class="num ${v<=0?"negtxt":""}">${v>0?money(v)+"/dia":"sem margem"}</b></div>`;
+    const tips=[meta?tip("Cumprir a meta",pd(orcMeta),"meta"):"",teto?tip("Ficar no teto",pd(teto),"teto"):"",tip("Não ficar negativo",pd(base),"zero")].join("");
+    const guarda=res-cxm;
+    det=`<details class="qp-more"${S.qpOpen?" open":""}><summary>Previsão e detalhes</summary><div class="qp-body">
+      <div>Nesse ritmo (<b class="num">${money(c.ritmo)}/dia</b>) o mês fecha em <b class="num ${res<0?"negtxt":""}">${res<0?"−":"+"} ${money(Math.abs(res))}</b>. Dia a dia previsto: <b class="num">${money(c.projDia)}</b>${teto?` de ${money(teto)} do teto`:""}.</div>
+      ${meta?`<div>${guarda>=meta?`No ritmo atual você guarda <b class="num">${money(guarda)}</b> ✓`:guarda>0?`No ritmo atual você guarda só <b class="num">${money(guarda)}</b> de ${money(meta)}.`:`No ritmo atual não sobra nada para guardar.`}</div>`:""}
+      <div class="qp-tips">${tips}</div>
+      <p class="note" style="margin:0">${cxm?`Já desconta ${money(cxm)} das caixinhas. `:""}A previsão usa sua média de ${c.dia} ${c.dia===1?"dia":"dias"}${c.grandes.length?" (compras acima de R$ 150 contam uma vez só)":""}. Faltam ${c.rest} ${c.rest===1?"dia":"dias"}. O valor principal é o menor dos limites acima.</p>
+    </div></details>`}
+  else if(cxm&&!c.passado)det=`<p class="note" style="margin:0">Já desconta ${money(cxm)} das caixinhas.</p>`;
+  const metaBtn=meta?`Meta ${money(meta).replace(/,00$/,"")}`:"Definir meta";
+  const acao=meta&&feito?`<div class="gm-done">✓ ${money(feito.dep.valor)} registrado em ${esc(feito.meta.nome)}</div>`:meta&&(c.atual||c.passado)&&destino?`<button class="btn gm-btn" id="gm-done">Guardei ${money(meta)} em ${esc(destino.nome)}</button>`:"";
+  return`<section class="qp ${st}" aria-label="Quanto posso gastar">
+    <div class="qp-top"><span class="qp-lbl">${c.passado?"Resultado do mês":"Quanto posso gastar"}</span><button class="gm-edit" id="gm-set">${metaBtn}</button></div>
+    <div class="qp-val num">${val}</div>
+    <div class="qp-s">${sub}</div>
+    ${tetoH}${det}${acao}
+  </section>`;
+}
+function cartoesMesHtml(){
+  const fs=allFormas().filter(f=>+f.limite>0);if(!fs.length)return"";
+  return`<section class="block"><h2>Cartões</h2><div class="list">${fs.map(f=>{const lim=+f.limite,u=limiteUsado(f.id,S.month),d=lim-u,pct=Math.min(100,Math.max(0,u/lim*100));
+    return`<button class="row" data-filter="${esc(f.id)}"><span class="main"><span class="t">${esc(f.nome)}</span><span class="bar lim"><i style="width:${pct.toFixed(1)}%;background:${pct>=90?"var(--neg)":pct>=70?"var(--warn)":"var(--pos)"}"></i></span></span><span class="v num ${d<0?"negtxt":""}">${money(d)}<small>disponível</small></span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}
+  </div><p class="note">Limite livre em ${esc(ymLabel(S.month).toLowerCase())}, já contando as parcelas que ainda vão cair. Toque para ver a fatura.</p></section>`;
 }
 /* ---------- painel ---------- */
 function renderPainel(){
@@ -741,18 +828,25 @@ function renderPainel(){
   const cats=ks.map(k=>{const a=cA[k]||0,b=cB[k]||0,c=catById(k);const pct=b?Math.round((a-b)/b*100):null;
     const d=!temAnt?"":pct===null?`<span class="delta eq">novo</span>`:pct>0?`<span class="delta up">↑ ${pct}%</span>`:pct<0?`<span class="delta down">↓ ${-pct}%</span>`:`<span class="delta eq">= igual</span>`;
     return`<button class="cmp-row" data-catopen="${esc(k)}" data-tip="${tip(`${c?c.nome:"Outros"}\n${MESES[+ymC.slice(5)-1]}: ${money(a)}\n${MESES[+antC.slice(5)-1]}: ${money(b)}`)}"><span class="cmp-top"><span class="cmp-n"><span class="dot" style="background:${catColor(k)}"></span>${esc(c?c.nome:"Outros")}${d}</span><b class="num">${money(a)}</b></span>
-      <span class="cmp-bar"><i style="width:${(a/cmax*100).toFixed(1)}%;background:${catColor(k)}"></i></span>${temAnt?`<span class="cmp-bar prev"><i style="width:${(b/cmax*100).toFixed(1)}%"></i></span>`:""}</button>`}).join("");
-  const chart3=`<section class="block"><h2>Categorias · ${esc(MESES[+ymC.slice(5)-1].toLowerCase())} × ${esc(MESES[+antC.slice(5)-1].toLowerCase())}</h2><div class="chart-card">
-    ${temAnt?`<div class="ch-leg"><span><i class="lg" style="background:var(--c0)"></i>${esc(MESES[+ymC.slice(5)-1])} (cor da categoria)</span><span><i class="lg" style="background:var(--free)"></i>${esc(MESES[+antC.slice(5)-1])}</span></div>`:""}
+      <span class="cmp-bar"><i style="width:${(a/cmax*100).toFixed(1)}%;background:${catColor(k)}"></i></span>${temAnt?`<span class="cmp-bar ant"><i style="width:${(b/cmax*100).toFixed(1)}%"></i></span>`:""}</button>`}).join("");
+  const sm=a=>a.reduce((s,i)=>s+i.valor,0),itsC=monthItems(ymC);
+  const entC=sm(itsC.filter(i=>i.tipo==="receita")),saiC=sm(itsC.filter(i=>i.tipo!=="receita")),saiB=Object.values(cB).reduce((a,b)=>a+b,0);
+  const nomeA=MESES[+ymC.slice(5)-1],nomeB=MESES[+antC.slice(5)-1];
+  const dSai=saiB?Math.round((saiC-saiB)/saiB*100):null;
+  const sumiram=Object.keys(cB).filter(k=>!cA[k]);
+  const chart3=`<section class="block"><div class="secbar"><h2>Categorias</h2><span class="mininav"><button class="iconbtn" id="prev" aria-label="Mês anterior">‹</button>${esc(ymShort(ymC))}<button class="iconbtn" id="next" aria-label="Próximo mês">›</button></span></div><div class="chart-card">
+    ${ks.length?`<div class="cat-sai"><span>Saídas em ${esc(nomeA.toLowerCase())}</span><span><b class="num">${money(saiC)}</b>${dSai!==null?`<span class="delta ${dSai>0?"up":dSai<0?"down":"eq"} big">${dSai>0?"↑ "+dSai+"%":dSai<0?"↓ "+(-dSai)+"%":"= igual"}</span>`:""}</span></div>
+    ${pieHtml(ks.filter(k=>cA[k]).map(k=>[k,cA[k]]),entC,saiC,true)}`:""}
+    ${temAnt?`<div class="ch-leg"><span><i class="lg" style="background:var(--c0)"></i>${esc(nomeA)} (cor da categoria)</span><span><i class="lg" style="background:var(--free)"></i>${esc(nomeB)}</span></div>`:""}
     ${ks.length?`<div class="cmp">${cats}</div>`:`<div class="empty"><b>Sem gastos em ${esc(ymLabel(ymC))}</b></div>`}
-    <p class="note">Mostra o mês aberto na aba Mês. Toque numa categoria para ver os itens.</p>
+    <p class="note">${temAnt?`Setas: comparado com ${esc(nomeB.toLowerCase())} (${money(saiB)} em saídas). ↑ gastou mais · ↓ gastou menos. `:""}${sumiram.length?"Sem gasto este mês em: "+esc(sumiram.map(k=>(catById(k)||{nome:"Outros"}).nome).join(", "))+". ":""}Toque numa categoria para ver os itens.</p>
   </div></section>`;
-  // ---- metas e cartões
-  const bar=(t,v,tot,sub,cor)=>{const p=tot?Math.min(100,Math.max(0,v/tot*100)):0;return`<div class="pg"><div class="pg-top"><span>${t}</span><b class="num">${Math.round(p)}%</b></div><span class="bar"><i style="width:${p.toFixed(1)}%;background:${cor}"></i></span><span class="pg-s num">${sub}</span></div>`};
-  const metasH=S.config.metas.filter(m=>+m.meta>0).map(m=>{const c=metaCalc(m);return bar(esc(m.nome),c.guardado,c.meta,`${money(c.guardado)} de ${money(c.meta)}${c.prev&&c.falta>0?" · previsão "+ymLabel(c.prev).toLowerCase():""}`,"var(--pos)")}).join("");
-  const cards=allFormas().filter(f=>+f.limite>0).map(f=>{const u=limiteUsado(f.id,hoje),lim=+f.limite,p=u/lim*100;return bar(esc(f.nome)+" · limite usado",u,lim,`Disponível ${money(lim-u)} de ${money(lim)}`,p>=90?"var(--neg)":p>=70?"var(--warn)":"var(--pos)")}).join("");
-  const resto=`<section class="block"><h2>Metas e cartões</h2><div class="chart-card pgs">${metasH}${cards}</div></section>`;
-  return`<header class="monthbar"><h1><small>Visão geral</small>Painel</h1></header>${statusLine()}${kpis}${chart1}${chart2}${chart3}${resto}`;
+  // ---- por forma de pagamento
+  const byF={};for(const i of itsC)if(i.tipo!=="receita"){const k=i.forma||"_";byF[k]=(byF[k]||0)+i.valor}
+  const fr=Object.entries(byF).sort((a,b)=>b[1]-a[1]),fmax=fr.length?fr[0][1]:1;
+  const formasH=fr.length?`<section class="block"><h2>Por forma de pagamento · ${esc(nomeA.toLowerCase())}</h2><div class="list">${fr.map(([k,v])=>{const f=formaById(k);
+    return`<button class="row" data-filter="${esc(k)}"><span class="main"><span class="t">${esc(f?f.nome:"Não informado")}</span><span class="s">${f&&f.cartao?"Cartão de crédito":"À vista"} · ${saiC?Math.round(v/saiC*100):0}% das saídas</span><span class="bar"><i style="width:${(v/fmax*100).toFixed(1)}%;background:var(--c0)"></i></span></span><span class="v num">${money(v)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}</div></section>`:"";
+return`<header class="monthbar"><h1><small>Para onde vai o dinheiro</small>Painel</h1></header>${statusLine()}${kpis}${chart1}${chart3}${chart2}${formasH}`;
 }
 /* ---------- sequência no teto ---------- */
 function sequenciaTeto(){
@@ -992,12 +1086,12 @@ function renderMetas(){
     <p class="hint meta-prev">${prevTxt}</p>
     <div class="actions"><button class="btn ghost" id="meta-edit">Editar meta</button><button class="btn" id="meta-dep">Registrar</button></div>
   </section>
-  <section class="block"><h2>Histórico</h2><div class="list">${hist}</div>
-  ${+m.inicial?`<p class="note">Inclui ${money(+m.inicial)} que já estavam guardados quando a meta foi criada.</p>`:""}</section>
   ${caixinhasHtml()}
   <section class="block"><h2>Simulação</h2>
-    <button class="row sim-card" id="sim-open"><span class="main"><span class="t">E se eu for promovido?</span><span class="s">Veja quanto a mais você guarda nos próximos 12 meses</span></span><span class="chev" aria-hidden="true">›</span></button>
-    <button class="row sim-card" id="compra-open"><span class="main"><span class="t">E se eu fizer uma compra?</span><span class="s">Veja se cabe no limite e como fica cada mês</span></span><span class="chev" aria-hidden="true">›</span></button></section>`;
+    <button class="row sim-card" id="compra-open"><span class="main"><span class="t">E se eu fizer uma compra?</span><span class="s">Veja se cabe no limite e como fica cada mês</span></span><span class="chev" aria-hidden="true">›</span></button>
+    <button class="row sim-card" id="sim-open"><span class="main"><span class="t">E se eu for promovido?</span><span class="s">Veja quanto a mais você guarda nos próximos 12 meses</span></span><span class="chev" aria-hidden="true">›</span></button></section>
+  <section class="block"><h2>Histórico · ${esc(m.nome)}</h2><div class="list">${hist}</div>
+  ${+m.inicial?`<p class="note">Inclui ${money(+m.inicial)} que já estavam guardados quando a meta foi criada.</p>`:""}</section>`;
 }
 function sobraMes(ym){const its=monthItems(ym);return its.reduce((a,i)=>a+(i.tipo==="receita"?i.valor:-i.valor),0)}
 function simSheet(){
@@ -1129,12 +1223,27 @@ function renderFixos(){
     return`<button class="row" data-fixo="${esc(f.id)}"><span class="dot" style="background:${f.tipo==="receita"?"var(--pos)":catColor(f.cat)}"></span>
     <span class="main"><span class="t">${esc(f.nome)}</span><span class="s">${esc([c&&f.tipo!=="receita"?c.nome:null,fo?fo.nome:null,f.desde?"desde "+ymShort(f.desde):null,f.ate?"até "+ymShort(f.ate):null].filter(Boolean).join(" · "))}</span></span>
     <span class="v num ${f.tipo==="receita"?"in":""}">${money(f.valor)}</span></button>`};
-  return`<header class="monthbar"><h1><small>Todo mês</small>Fixos</h1></header>
-  <p class="note">Contas e rendas que se repetem. Elas entram sozinhas em cada mês, e você pode ajustar o valor ou pular um mês específico tocando nelas na aba Mês.</p>
+  return`<header class="monthbar"><h1><small>O que já está comprometido</small>Contas</h1></header>
+  <p class="note">Contas e rendas que se repetem entram sozinhas em cada mês. Para ajustar o valor ou pular um mês específico, abra a aba Mês › Lançamentos › Contas fixas do mês.</p>
   <section class="block"><h2>Rendas · ${money(tot(rec))}</h2><div class="list">${rec.length?rec.map(row).join(""):`<div class="empty">Nenhuma renda fixa. Adicione seu salário.</div>`}</div></section>
   <section class="block"><h2>Contas fixas · ${money(tot(des))}</h2><div class="list">${des.length?des.map(row).join(""):`<div class="empty">Nenhuma conta fixa ainda.</div>`}</div></section>
   <button class="add" id="addfixo">+ Novo fixo</button>
+  ${parcelasFuturasHtml()}
   ${assinaturasHtml()}`;
+}
+function parcelasFuturasHtml(){
+  const hoje=ymOf(today()),fut=[],porMes={};
+  for(const l of S.lanc){if(l.tipo==="receita")continue;const n=Math.max(1,+l.parcelas||1);if(n<2)continue;
+    const c0=l.comp||ymOf(l.data);let rest=0,cnt=0,last=null;
+    for(let i=0;i<n;i++){const m=addM(c0,i);if(m>hoje){const v=parcelaValor(l.valor,n,i);rest+=v;cnt++;last=m;porMes[m]=(porMes[m]||0)+v}}
+    if(cnt)fut.push({l,n,rest,cnt,last})}
+  if(!fut.length)return"";
+  fut.sort((a,b)=>b.rest-a.rest);
+  const tot=fut.reduce((a,x)=>a+x.rest,0),prox=Array.from({length:6},(_,k)=>addM(hoje,k+1));
+  return`<section class="block"><h2>Parcelas que ainda vão cair · ${money(tot)}</h2>
+    <div class="pf-meses">${prox.map(m=>`<div><span>${esc(ymShort(m))}</span><b class="num">${money(porMes[m]||0)}</b></div>`).join("")}</div>
+    <div class="list">${fut.map(x=>{const f=formaById(x.l.forma);return`<button class="row" data-edit-l="${esc(x.l.id)}"><span class="dot" style="background:${catColor(x.l.cat)}"></span><span class="main"><span class="t">${esc(x.l.desc||"Sem descrição")}</span><span class="s">faltam ${x.cnt} de ${x.n} · até ${esc(ymShort(x.last))}${f?" · "+esc(f.nome):""}</span></span><span class="v num">${money(x.rest)}</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}</div>
+    <p class="note">A partir de ${esc(ymLabel(addM(hoje,1)).toLowerCase())}. Toque numa compra para corrigir.</p></section>`;
 }
 function renderAjustes(){
   const C=S.config;
@@ -1447,6 +1556,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#exp-mes")){exportCsv(false);return}
   if(t.closest("#exp-all")){exportCsv(true);return}
 });
+app.addEventListener("toggle",e=>{const d=e.target;if(!d.classList)return;if(d.classList.contains("qp-more"))S.qpOpen=d.open;else if(d.classList.contains("fx-det"))S.fxOpen=d.open},true);
 app.addEventListener("input",e=>{
   if(e.target.id==="busca"){S.busca=e.target.value;const r=document.getElementById("busca-res");if(r)r.innerHTML=buscaHtml();
     const box=e.target.parentElement;const x=box.querySelector("#busca-x");if(S.busca&&!x)box.insertAdjacentHTML("beforeend",`<button id="busca-x" aria-label="Limpar busca">✕</button>`);if(!S.busca&&x)x.remove()}
