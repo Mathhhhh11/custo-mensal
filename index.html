@@ -174,6 +174,27 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .pie.solo .pie-leg{display:none}
 .io span.delta{display:inline-block;margin-left:4px;font-size:11px;vertical-align:1px}
 .gm-edit{text-align:right}
+.ritmo{background:color-mix(in srgb,var(--warn) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.ritmo.over{background:color-mix(in srgb,var(--neg) 10%,var(--surface));border-color:color-mix(in srgb,var(--neg) 45%,var(--line))}
+.ritmo-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ritmo-top .gm-edit{white-space:nowrap}
+.lim-row .s{white-space:normal}
+.ritmo-top b{color:var(--warn)}.ritmo.over .ritmo-top b{color:var(--neg)}
+.ritmo p{margin:0}.ritmo ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px}
+.lim-row .teto-bar{height:8px;margin-top:6px}
+.lim-row .teto-bar em{background:var(--ink);opacity:.35}
+.lim-row.warn .teto-bar i{background:var(--warn)}.lim-row.over .teto-bar i{background:var(--neg)}
+.lim-row .s b{color:var(--ink)}
+.lim-row.over .v{color:var(--neg)}
+.lim-ed{display:grid;grid-template-columns:1fr 104px;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.lim-ed:first-child{border-top:0}
+.lim-ed .t{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0}
+.lim-ed .s{display:block;font-size:12px;color:var(--muted)}
+.lim-ed input{text-align:right}
+.f-at .chip{font-size:13px;padding:6px 10px}
+.f-at .chip small{color:var(--muted);font-weight:500;margin-left:2px}
+.f-warn{background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));border-radius:10px;padding:10px 12px;font-size:14px}
+.f-warn ul{margin:4px 0 0;padding-left:18px}
 .pf-meses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pf-meses div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
 .pf-meses span{font-size:12px;color:var(--muted);font-weight:600}
@@ -429,7 +450,7 @@ function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
   fixos:Array.isArray(c.fixos)?c.fixos:[],
   teto:c.teto===undefined||c.teto===null?175000:Math.max(0,+c.teto||0),
   caixinhas:Array.isArray(c.caixinhas)?c.caixinhas:[],
-  guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",
+  guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",catLim:c.catLim&&typeof c.catLim==="object"?c.catLim:{},catLimMes:c.catLimMes&&typeof c.catLimMes==="object"?c.catLimMes:{},
   metas:Array.isArray(c.metas)&&c.metas.length?c.metas:[{id:"reserva",nome:"Reserva",meta:0,inicial:0,depositos:[]},{id:"casa",nome:"Casa com a Rosinha",meta:0,inicial:0,depositos:[]}]}}
 function loadCache(){
   const c=LS.get("cm.config",null);if(c)S.config=normalize(c);
@@ -668,12 +689,14 @@ function renderMes(){
     <button class="iconbtn" id="next" aria-label="Próximo mês">›</button>
   </header>
   <div class="headrow">${statusLine()}<button class="relbtn" id="rel-open" aria-label="Relatório do mês: enviar no WhatsApp ou salvar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg>Relatório</button></div>
+  ${ritmoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
     <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
     <div><span class="meter">${meter}</span><div class="meter-cap num" style="margin-top:6px"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
   </section>
   ${gastarHtml(items)}
+  ${limitesHtml(items)}
 
   ${calHtml()}
 
@@ -739,6 +762,74 @@ function gastarHtml(items){
     <div class="qp-s">${sub}</div>
     ${tetoH}${det}${acao}
   </section>`;
+}
+/* ---------- limites por categoria ---------- */
+const PESO_CAT=[[/assin|aluguel|financ|empr[eé]st|educa|faculd/i,0],[/comida|alimenta|restaur|delivery|ifood/i,9],[/mercado|supermerc/i,6],[/transp|uber|combust/i,8],[/lazer|game|divers/i,5],[/compra|roupa|vestu/i,4],[/sa[uú]de|farm/i,3],[/casa|lar\b/i,3]];
+function pesoCat(c){const s=c.id+" "+c.nome;for(const[r,p]of PESO_CAT)if(r.test(s))return p;return 2}
+function limitesMes(ym){const m=S.config.catLimMes||{};return Object.prototype.hasOwnProperty.call(m,ym)?(m[ym]||{}):(S.config.catLim||{})}
+function sugestaoLimites(){
+  const sal=S.config.fixos.filter(f=>f.tipo==="receita").reduce((a,f)=>a+(+f.valor||0),0);
+  const base=+S.config.teto||Math.round(sal*0.33);const cats=S.config.categorias;
+  const tot=cats.reduce((a,c)=>a+pesoCat(c),0)||1,o={};
+  for(const c of cats){const p=pesoCat(c);if(p)o[c.id]=Math.max(1000,Math.round(base*p/tot/1000)*1000)}
+  return o;
+}
+function gastoDiaPorCat(items){const g={};for(const i of items)if(isDiaADia(i)){const k=i.cat||"outros";g[k]=(g[k]||0)+i.valor}return g}
+function fracMes(ym){const c=calcMes([],ym);return c.passado?1:c.atual?c.dia/c.nd:0}
+function limitesHtml(items){
+  const ym=S.month,L=limitesMes(ym),ks=Object.keys(L).filter(k=>+L[k]>0&&catById(k));
+  if(!ks.length)return`<button class="row sim-card" id="lim-open"><span class="main"><span class="t">Definir limites por categoria</span><span class="s">Ex.: quanto gastar com comida e Uber no mês</span></span><span class="chev" aria-hidden="true">›</span></button>`;
+  const g=gastoDiaPorCat(items),fr=fracMes(ym);
+  const all=ks.map(k=>({k,lim:+L[k],v:g[k]||0})).sort((a,b)=>b.v/b.lim-a.v/a.lim),rows=all.filter(r=>r.v>0),zero=all.filter(r=>!r.v);
+  return`<section class="block"><div class="secbar"><h2>Limites do mês</h2><button class="gm-edit" id="lim-open">Ajustar</button></div>${rows.length?`<div class="list">${rows.map(r=>{const c=catById(r.k),p=r.v/r.lim,st=p>=1?"over":p>fr+0.1&&p>=0.3?"warn":"ok";
+    return`<button class="row lim-row ${st}" data-catopen="${esc(r.k)}"><span class="dot" style="background:${catColor(r.k)}"></span><span class="main"><span class="t">${esc(c.nome)}</span><span class="s num"><b>${money(r.v)}</b> de ${money(r.lim)}${p>=1?` · passou ${money(r.v-r.lim)}`:` · resta ${money(r.lim-r.v)}`}</span><span class="teto-bar"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i>${fr>0&&fr<1?`<em style="left:${(fr*100).toFixed(1)}%"></em>`:""}</span></span><span class="v num">${Math.round(p*100)}%</span><span class="chev" aria-hidden="true">›</span></button>`}).join("")}</div>`:""}
+  <p class="note">${zero.length?`Sem gasto ainda: ${esc(zero.map(r=>catById(r.k).nome+" ("+money(r.lim).replace(/,00$/,"")+")").join(", "))}. `:""}Só compras à vista do dia a dia, sem fixos e parcelas.${fr>0&&fr<1?" O tracinho marca onde você deveria estar hoje.":""}</p></section>`;
+}
+function limSheet(){
+  const ym=S.month,atual=limitesMes(ym),sug=sugestaoLimites(),g=gastoDiaPorCat(monthItems(ym)),teto=+S.config.teto||0;
+  const cats=S.config.categorias.filter(c=>pesoCat(c)>0||+atual[c.id]>0||g[c.id]>0);
+  const temMes=Object.prototype.hasOwnProperty.call(S.config.catLimMes||{},ym);
+  openSheet(`<h3>Limites por categoria · ${esc(ymLabel(ym))}</h3>
+    <p class="note">Quanto você quer gastar no dia a dia de cada categoria (compras à vista, sem fixos e parcelas). Deixe em branco para não limitar.</p>
+    <div class="list">${cats.map(c=>`<div class="lim-ed"><span><span class="t"><span class="dot" style="background:${catColor(c.id)}"></span>${esc(c.nome)}</span><span class="s num">${sug[c.id]?"sugestão "+money(sug[c.id]).replace(/,00$/,""):"sem sugestão"}${g[c.id]?" · gasto "+money(g[c.id]):""}</span></span><input class="inp num" inputmode="decimal" data-lim="${esc(c.id)}" value="${esc(centsToInput(+atual[c.id]||0))}" placeholder="—" aria-label="Limite de ${esc(c.nome)}"></div>`).join("")}</div>
+    <div class="hint" id="lim-tot"></div>
+    <button class="btn ghost" id="lim-sug" style="width:100%">Preencher com a sugestão</button>
+    <p class="note">A sugestão reparte ${teto?`seu teto de ${money(teto).replace(/,00$/,"")}`:"um terço da sua renda"} pelas categorias com pesos de referência: alimentação ~15% do orçamento (no máximo metade fora de casa), transporte ~8%, lazer ~5%, compras ~4%, saúde e casa ~3% cada. Esses pesos vêm da Pesquisa de Orçamentos Familiares do IBGE e da regra 50/30/20. Ajuste para a sua realidade.</p>
+    <label class="gm-chk"><input type="checkbox" id="lim-all" ${temMes?"":"checked"}> Usar também nos próximos meses</label>
+    <div class="actions"><button class="btn ghost" id="lim-zero">Sem limites</button><button class="btn" id="lim-ok">Salvar</button></div>`,root=>{
+    const $=s=>root.querySelector(s),ins=[...root.querySelectorAll("[data-lim]")];
+    const tot=()=>{const t=ins.reduce((a,i)=>a+toCents(i.value),0);$("#lim-tot").innerHTML=t?`Soma dos limites: <b>${money(t)}</b>${teto?` de ${money(teto)} do teto${t>teto?` · <span class="negtxt">passa ${money(t-teto)} do teto</span>`:""}`:""}`:"Nenhum limite definido."};
+    tot();root.addEventListener("input",e=>{if(e.target.dataset.lim)tot()});
+    $("#lim-sug").addEventListener("click",()=>{for(const i of ins)i.value=sug[i.dataset.lim]?centsToInput(sug[i.dataset.lim]):"";tot()});
+    const salvar=vals=>{const m={...(S.config.catLimMes||{})};
+      if($("#lim-all").checked){S.config.catLim=vals;for(const k of Object.keys(m))if(k>=ym)delete m[k]}else m[ym]=vals;
+      S.config.catLimMes=m;closeSheet();saveConfig();toast(Object.keys(vals).length?"Limites salvos":"Limites removidos")};
+    $("#lim-ok").addEventListener("click",()=>{const v={};for(const i of ins){const c=toCents(i.value);if(c>0)v[i.dataset.lim]=c}salvar(v)});
+    $("#lim-zero").addEventListener("click",()=>salvar({}));
+  });
+}
+/* ---------- aviso de ritmo ---------- */
+function ritmoHtml(items){
+  const ym=S.month,hoje=today();if(ym!==ymOf(hoje))return"";
+  const c=calcMes(items,ym);if(c.dia<3)return"";
+  const fr=c.dia/c.nd,teto=+S.config.teto||0,alertas=[];let tetoTxt="",over=false;
+  if(teto){const u=c.dd/teto;if(u>=fr+0.15&&u>=0.3){over=u>=1;const dias=c.rest+1,pd=Math.floor((teto-c.dd)/dias);
+    tetoTxt=`Hoje é dia ${c.dia} de ${c.nd} (${Math.round(fr*100)}% do mês) e você já usou <b>${Math.round(u*100)}% do teto</b> do dia a dia. ${u>=1?`Passou ${money(c.dd-teto)} do teto.`:`Para fechar no teto: <b class="num">${money(pd)}/dia</b>.`}`}}
+  const L=limitesMes(ym),g=gastoDiaPorCat(items);
+  for(const k of Object.keys(L)){const lim=+L[k],c2=catById(k);if(!lim||!c2)continue;const u=(g[k]||0)/lim;
+    if(u>=fr+0.2&&u>=0.4)alertas.push(`<li><b>${esc(c2.nome)}</b>: ${Math.round(u*100)}% do limite (${money(g[k]||0)} de ${money(lim)})</li>`)}
+  if(!tetoTxt&&!alertas.length)return"";
+  if(LS.get("cm.ritmoOk","")===hoje)return"";
+  return`<section class="ritmo ${over?"over":""}" role="alert"><div class="ritmo-top"><b>⚠ Gastando mais rápido que o mês</b><button class="gm-edit" id="ritmo-ok">Ok, entendi</button></div>
+    ${tetoTxt?`<p>${tetoTxt}</p>`:""}${alertas.length?`<p>Categorias acima do ritmo:</p><ul>${alertas.join("")}</ul>`:""}</section>`;
+}
+/* ---------- atalhos do lançamento ---------- */
+function atalhosLanc(){
+  const lim=addM(ymOf(today()),-3)+"-01",m={};
+  for(const l of S.lanc){if(l.tipo==="receita"||(+l.parcelas||1)>1||!l.desc||!l.data||l.data<lim)continue;
+    const k=norm(l.desc).trim();if(!k)continue;const o=m[k]||(m[k]={n:0,desc:l.desc,cat:l.cat,forma:l.forma,data:""});
+    o.n++;if(l.data>=o.data){o.data=l.data;o.desc=l.desc;o.cat=l.cat;o.forma=l.forma}}
+  return Object.values(m).filter(o=>o.n>=2).sort((a,b)=>b.n-a.n).slice(0,6);
 }
 function cartoesMesHtml(){
   const fs=allFormas().filter(f=>+f.limite>0);if(!fs.length)return"";
@@ -1378,9 +1469,10 @@ function lancForm(existing,dataPadrao){
   const L=existing||{tipo:"despesa",valor:0,desc:"",cat:S.lastCat||S.config.categorias[0]?.id,forma:S.lastForma||allFormas()[0]?.id,
     data:dataPadrao||(S.month===ymOf(today())?today():S.month+"-01"),parcelas:1};
   const st={tipo:L.tipo||"despesa",cat:L.tipo==="receita"?(S.lastCat||S.config.categorias[0]?.id):L.cat,catIn:L.tipo==="receita"&&L.cat?L.cat:(ehDecimo(L.desc)?"e-13":"e-outras"),forma:L.forma,modo:"total",confirm:false};
-  const n0=+L.parcelas||1;
+  const n0=+L.parcelas||1,ats=existing?[]:atalhosLanc();
   const html=`<h3>${existing?"Editar lançamento":"Novo lançamento"}</h3>
   <div class="seg" id="f-tipo"><button type="button" data-v="despesa">Despesa</button><button type="button" data-v="receita">Entrada</button></div>
+  ${!existing&&ats.length?`<div class="f-at"><label class="f">Atalhos</label><div class="chips" id="f-at" style="margin-top:6px">${ats.map((a,i)=>`<button type="button" class="chip" data-at="${i}">${esc(a.desc)}<small>${a.n}×</small></button>`).join("")}</div></div>`:""}
   <div class="amount"><span>R$</span><input id="f-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(centsToInput(L.valor))}" aria-label="Valor"></div>
   <label class="f">Descrição<input class="inp" id="f-desc" value="${esc(L.desc)}" placeholder="Ex.: Mercado, AliExpress, gasolina" autocomplete="off"></label>
   <div class="f-cat-wrap"><label class="f">Categoria</label><div class="chips" id="f-cat" style="margin-top:6px">${chipsHtml(S.config.categorias,st.cat,"cat",true)}</div></div>
@@ -1392,6 +1484,7 @@ function lancForm(existing,dataPadrao){
   <div class="two"><label class="f" id="f-comp-wrap"><span id="f-comp-lbl">Entra no mês</span><select class="inp" id="f-comp"></select></label>
     <label class="f" id="f-pa-wrap" hidden>Esta é a parcela<select class="inp" id="f-pa"><option value="1">1ª</option></select></label></div>
   <div class="hint" id="f-hint"></div>
+  <div class="f-warn" id="f-warn" hidden></div>
   <div class="actions">${existing?`<button type="button" class="btn danger" id="f-del">Excluir</button>`:""}<button type="button" class="btn" id="f-save">Salvar</button></div>`;
   openSheet(html,root=>{
     const $=s=>root.querySelector(s);
@@ -1407,7 +1500,7 @@ function lancForm(existing,dataPadrao){
     const update=()=>{
       paintSeg("#f-tipo",st.tipo);paintSeg("#f-modo",st.modo);
       const n=+$("#f-parc").value; $("#f-modo").hidden=n<2||st.tipo==="receita";
-      $(".f-cat-wrap").hidden=st.tipo==="receita";$(".f-catin-wrap").hidden=st.tipo!=="receita";
+      $(".f-cat-wrap").hidden=st.tipo==="receita";$(".f-catin-wrap").hidden=st.tipo!=="receita";const fat=$(".f-at");if(fat)fat.hidden=st.tipo==="receita";
       let v=toCents($("#f-valor").value); const total=(n>1&&st.modo==="parcela")?v*n:v;
       const pa=$("#f-pa"),prev=+pa.value||1;$("#f-pa-wrap").hidden=n<2||st.tipo==="receita";
       if(pa.options.length!==n){pa.innerHTML=Array.from({length:n},(_,i)=>`<option value="${i+1}">${i+1}ª de ${n}</option>`).join("");pa.value=String(Math.min(prev,n))}
@@ -1436,12 +1529,26 @@ function lancForm(existing,dataPadrao){
     compSel.addEventListener("change",()=>{compManual=compSel.value;update()});
     $("#f-valor").addEventListener("input",update);$("#f-parc").addEventListener("change",update);$("#f-pa").addEventListener("change",update);
     if(!existing)setTimeout(()=>$("#f-valor").focus(),60);
+    const fat=$("#f-at");if(fat)fat.addEventListener("click",e=>{const b=e.target.closest("[data-at]");if(!b)return;const a=ats[+b.dataset.at];
+      $("#f-desc").value=a.desc;if(a.cat&&catById(a.cat)){st.cat=a.cat;root.querySelectorAll("#f-cat .chip").forEach(c=>c.classList.toggle("on",c.dataset.cat===a.cat))}
+      if(a.forma&&formaById(a.forma)){st.forma=a.forma;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c.dataset.forma===a.forma));compManual=null;fillComp()}
+      root.querySelectorAll("#f-at .chip").forEach(c=>c.classList.toggle("on",c===b));update();$("#f-valor").focus()});
     $("#f-save").addEventListener("click",async()=>{
       const n=+$("#f-parc").value;let v=toCents($("#f-valor").value);
       const total=(n>1&&st.modo==="parcela"&&st.tipo!=="receita")?v*n:v; if(!total)return;
       const obj={id:existing?existing.id:uid(),tipo:st.tipo,valor:total,desc:$("#f-desc").value.trim(),
         cat:st.tipo==="receita"?st.catIn:st.cat,forma:st.forma||null,data:$("#f-data").value||today(),
         parcelas:st.tipo==="receita"?1:n,comp:(st.tipo!=="receita"&&n>1)?addM(compSel.value,-((+$("#f-pa").value||1)-1)):compSel.value,criado:existing?.criado||new Date().toISOString()};
+      const av=[];
+      if(obj.tipo!=="receita"){
+        const dup=S.lanc.find(x=>x.id!==obj.id&&(x.tipo||"despesa")===obj.tipo&&+x.valor===obj.valor&&x.data===obj.data);
+        if(dup)av.push(`Já existe “${esc(dup.desc||"Sem descrição")}” de ${money(dup.valor)} neste mesmo dia. Pode ser lançamento repetido.`);
+        if(!obj.forma||!formaById(obj.forma))av.push("Falta a forma de pagamento.");
+        else if(n>1&&!formaById(obj.forma).cartao)av.push(`Parcelado em ${esc(formaById(obj.forma).nome)}: se foi no cartão de crédito, escolha o cartão para contar no limite.`);
+      }
+      if(!obj.desc)av.push("Falta a descrição.");
+      const sig=av.join("|");
+      if(av.length&&st.avisoSig!==sig){st.avisoSig=sig;const w=$("#f-warn");w.innerHTML=`<b>Confere antes de salvar:</b><ul>${av.map(a=>`<li>${a}</li>`).join("")}</ul>`;w.hidden=false;$("#f-save").textContent="Salvar mesmo assim";w.scrollIntoView({block:"nearest",behavior:"smooth"});return}
       if(obj.tipo!=="receita")S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita")S.lastForma=obj.forma;
       closeSheet();await saveLanc(obj);toast(existing?"Lançamento atualizado":"Lançamento salvo");backToCat();
     });
@@ -1518,6 +1625,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#clearfilter")){S.filter=null;render();return}
   if(t.closest("#teto-open")){tetoSheet();return}
   if(t.closest("#gm-set")){guardarSheet();return}
+  if(t.closest("#lim-open")){limSheet();return}
+  if(t.closest("#ritmo-ok")){LS.set("cm.ritmoOk",today());render();return}
   const cxn=t.closest("[data-cx-new]");if(cxn){caixSheet(null,cxn.dataset.cxNew);return}
   const cxe=t.closest("[data-cx-edit]");if(cxe){caixSheet((S.config.caixinhas||[]).find(x=>x.id===cxe.dataset.cxEdit));return}
   const cxd=t.closest("[data-cx-dep]");if(cxd){caixDep(cxd.dataset.cxDep);return}
