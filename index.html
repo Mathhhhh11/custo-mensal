@@ -764,7 +764,7 @@ function gastarHtml(items){
   </section>`;
 }
 /* ---------- limites por categoria ---------- */
-const PESO_CAT=[[/assin|aluguel|financ|empr[eé]st|educa|faculd/i,0],[/comida|alimenta|restaur|delivery|ifood/i,9],[/mercado|supermerc/i,6],[/transp|uber|combust/i,8],[/lazer|game|divers/i,5],[/compra|roupa|vestu/i,4],[/sa[uú]de|farm/i,3],[/casa|lar\b/i,3]];
+const PESO_CAT=[[/invest|poupan|reserva|assin|aluguel|financ|empr[eé]st|educa|faculd/i,0],[/comida|alimenta|restaur|delivery|ifood/i,9],[/mercado|supermerc/i,6],[/transp|uber|combust/i,8],[/lazer|game|divers/i,5],[/compra|roupa|vestu/i,4],[/sa[uú]de|farm/i,3],[/casa|lar\b/i,3]];
 function pesoCat(c){const s=c.id+" "+c.nome;for(const[r,p]of PESO_CAT)if(r.test(s))return p;return 2}
 function limitesMes(ym){const m=S.config.catLimMes||{};return Object.prototype.hasOwnProperty.call(m,ym)?(m[ym]||{}):(S.config.catLim||{})}
 function sugestaoLimites(){
@@ -1143,8 +1143,16 @@ function diaSheet(ds){
 }
 /* ---------- metas ---------- */
 S.metaTab=LS.get("cm.metaTab","reserva");
+function depositosAuto(m){
+  const out=[],atual=ymOf(today());
+  for(const f of S.config.fixos||[]){if(!m||f.meta!==m.id||f.tipo==="receita"||!f.desde)continue;
+    for(let ym=f.desde;ym<=atual&&(!f.ate||ym<=f.ate);ym=addM(ym,1)){
+      const ex=f.excecoes&&Object.prototype.hasOwnProperty.call(f.excecoes,ym)?f.excecoes[ym]:undefined;if(ex===null)continue;
+      out.push({id:"auto-"+f.id+"-"+ym,mes:ym,valor:ex!==undefined?+ex:+f.valor,nota:f.nome+" · automático",auto:true})}}
+  return out;
+}
 function metaCalc(m){
-  const deps=(m.depositos||[]).slice().sort((a,b)=>b.mes.localeCompare(a.mes)||(b.id>a.id?1:-1));
+  const deps=[...(m.depositos||[]),...depositosAuto(m)].sort((a,b)=>b.mes.localeCompare(a.mes)||(b.id>a.id?1:-1));
   const guardado=(+m.inicial||0)+deps.reduce((a,d)=>a+(+d.valor||0),0);
   const atual=ymOf(today());
   const first=deps.length?deps[deps.length-1].mes:atual;
@@ -1166,7 +1174,7 @@ function renderMetas(){
   else if(c.ritmo>0)prevTxt=`No ritmo atual (${money(c.ritmo)} por mês), você chega lá em <b>${ymLabel(c.prev)}</b>.`;
   else prevTxt=`Faltam ${money(c.falta)}. Registre quanto guardou no mês para ver a previsão.`;
   const meses=Object.keys(c.porMes).sort().reverse();
-  const hist=c.deps.length?c.deps.map(d=>`<button class="row" data-dep="${esc(d.id)}"><span class="main"><span class="t">${ymLabel(d.mes)}</span><span class="s">${esc(d.nota||(d.valor<0?"Retirada":"Depósito"))}</span></span><span class="v num ${d.valor<0?"":"in"}">${d.valor<0?"−":"+"} ${money(Math.abs(d.valor))}</span><span class="chev" aria-hidden="true">›</span></button>`).join(""):`<div class="empty"><b>Nenhum depósito registrado ainda</b>Toque em "Registrar" depois de guardar dinheiro no mês.</div>`;
+  const hist=c.deps.length?c.deps.map(d=>d.auto?`<div class="row"><span class="main"><span class="t">${ymLabel(d.mes)}<span class="tag fix">automático</span></span><span class="s">${esc(d.nota)}</span></span><span class="v num in">+ ${money(d.valor)}</span></div>`:`<button class="row" data-dep="${esc(d.id)}"><span class="main"><span class="t">${ymLabel(d.mes)}</span><span class="s">${esc(d.nota||(d.valor<0?"Retirada":"Depósito"))}</span></span><span class="v num ${d.valor<0?"":"in"}">${d.valor<0?"−":"+"} ${money(Math.abs(d.valor))}</span><span class="chev" aria-hidden="true">›</span></button>`).join(""):`<div class="empty"><b>Nenhum depósito registrado ainda</b>Toque em "Registrar" depois de guardar dinheiro no mês.</div>`;
   return`<header class="monthbar"><h1><small>Objetivos</small>Metas</h1></header>
   ${tabs}
   <section class="summary meta-card">
@@ -1578,25 +1586,27 @@ function fixoMonthSheet(f){
 }
 function fixoForm(existing){
   const F=existing||{id:uid(),nome:"",valor:0,tipo:"despesa",cat:"casa",forma:null,desde:S.month};
-  const st={tipo:F.tipo||"despesa",cat:F.cat,forma:F.forma,confirm:false};
+  const st={tipo:F.tipo||"despesa",cat:F.cat,forma:F.forma,meta:F.meta||null,confirm:false};
   openSheet(`<h3>${existing?"Editar fixo":"Novo fixo"}</h3>
     <div class="seg" id="x-tipo"><button type="button" data-v="despesa">Conta</button><button type="button" data-v="receita">Renda</button></div>
     <label class="f">Nome<input class="inp" id="x-nome" value="${esc(F.nome)}" placeholder="Ex.: Internet, Salário"></label>
     <div class="amount"><span>R$</span><input id="x-valor" inputmode="decimal" value="${esc(centsToInput(F.valor))}" placeholder="0,00" aria-label="Valor mensal"></div>
     <div class="x-cat"><label class="f">Categoria</label><div class="chips" id="x-cat" style="margin-top:6px">${chipsHtml(S.config.categorias,st.cat,"cat",true)}</div></div>
     <div><label class="f">Pagamento (opcional)</label><div class="chips" id="x-forma" style="margin-top:6px">${chipsHtml(allFormas(),st.forma,"forma",false)}</div></div>
+    <div class="x-meta"><label class="f">Vai para a meta (opcional)</label><div class="chips" id="x-meta" style="margin-top:6px">${chipsHtml(S.config.metas||[],st.meta,"meta",false)}</div><p class="note" style="margin:6px 0 0">Todo mês que este fixo passar, o valor entra sozinho na meta escolhida.</p></div>
     <div class="two"><label class="f">A partir de<input class="inp" type="month" id="x-desde" value="${esc(F.desde||"")}"></label>
       <label class="f">Até (opcional)<input class="inp" type="month" id="x-ate" value="${esc(F.ate||"")}"></label></div>
     <div class="actions">${existing?`<button class="btn danger" id="x-del">Excluir</button>`:""}<button class="btn" id="x-save">Salvar</button></div>`,root=>{
     const $=s=>root.querySelector(s);
-    const paint=()=>{root.querySelectorAll("#x-tipo button").forEach(b=>b.classList.toggle("on",b.dataset.v===st.tipo));$(".x-cat").hidden=st.tipo==="receita"};
+    const paint=()=>{root.querySelectorAll("#x-tipo button").forEach(b=>b.classList.toggle("on",b.dataset.v===st.tipo));$(".x-cat").hidden=st.tipo==="receita";$(".x-meta").hidden=st.tipo==="receita"};
     paint();
     $("#x-tipo").addEventListener("click",e=>{const b=e.target.closest("button");if(b){st.tipo=b.dataset.v;paint()}});
     $("#x-cat").addEventListener("click",e=>{const b=e.target.closest("[data-cat]");if(!b)return;st.cat=b.dataset.cat;root.querySelectorAll("#x-cat .chip").forEach(c=>c.classList.toggle("on",c===b))});
     $("#x-forma").addEventListener("click",e=>{const b=e.target.closest("[data-forma]");if(!b)return;st.forma=st.forma===b.dataset.forma?null:b.dataset.forma;root.querySelectorAll("#x-forma .chip").forEach(c=>c.classList.toggle("on",c.dataset.forma===st.forma))});
+    $("#x-meta").addEventListener("click",e=>{const b=e.target.closest("[data-meta]");if(!b)return;st.meta=st.meta===b.dataset.meta?null:b.dataset.meta;root.querySelectorAll("#x-meta .chip").forEach(c=>c.classList.toggle("on",c.dataset.meta===st.meta))});
     $("#x-save").addEventListener("click",()=>{
       const nome=$("#x-nome").value.trim();if(!nome){$("#x-nome").focus();return}
-      const obj={...F,nome,valor:toCents($("#x-valor").value),tipo:st.tipo,cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,desde:$("#x-desde").value||null,ate:$("#x-ate").value||null};
+      const obj={...F,nome,valor:toCents($("#x-valor").value),tipo:st.tipo,cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,meta:st.tipo==="receita"?null:(st.meta||null),desde:$("#x-desde").value||null,ate:$("#x-ate").value||null};
       const i=S.config.fixos.findIndex(x=>x.id===obj.id);
       S.config.fixos=i>=0?S.config.fixos.map(x=>x.id===obj.id?obj:x):[...S.config.fixos,obj];
       closeSheet();saveConfig();toast("Fixo salvo");backToCat();
