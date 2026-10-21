@@ -195,6 +195,29 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .f-at .chip small{color:var(--muted);font-weight:500;margin-left:2px}
 .f-warn{background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));border-radius:10px;padding:10px 12px;font-size:14px}
 .f-warn ul{margin:4px 0 0;padding-left:18px}
+.ext-link{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:12px 0 0;margin-top:2px;color:var(--accent);font-weight:700;font-size:14px;text-align:left}
+.ext-link span{font-size:20px;line-height:1}
+.ext-io>div{cursor:pointer}
+.ext-res{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ext-res div{background:var(--sunk);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.ext-res span{font-size:12px;color:var(--muted);font-weight:600}
+.ext-res b{font-size:15px}
+.ext-sec{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:4px}
+.ext-sec h2{margin:0}
+.ext-sec b{font-size:15px}
+.ext-bar{display:flex;height:12px;border-radius:7px;overflow:hidden;background:var(--sunk)}
+.ext-bar i{display:block;height:100%}
+.ext-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.ext-leg span{display:inline-flex;align-items:center;gap:5px}
+.ext-cat{border-top:1px solid var(--line)}
+.ext-cat:first-child{border-top:0}
+.ext-cat summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.ext-cat summary::-webkit-details-marker{display:none}
+.ext-cat summary .n{flex:1;font-weight:600;min-width:0}
+.ext-cat summary .n small{display:block;font-weight:500;font-size:12.5px;color:var(--muted)}
+.ext-cat summary::after{content:"▾";color:var(--muted)}
+.ext-cat[open] summary::after{content:"▴"}
+.ext-cat .row{background:var(--sunk)}
 .pf-meses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pf-meses div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
 .pf-meses span{font-size:12px;color:var(--muted);font-weight:600}
@@ -692,8 +715,9 @@ function renderMes(){
   ${ritmoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
     <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
-    <div class="io"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
+    <div class="io ext-io" id="ext-open2"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
     <div><span class="meter">${meter}</span><div class="meter-cap num" style="margin-top:6px"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
+    <button class="ext-link" id="ext-open">Ver tudo que entrou e saiu<span aria-hidden="true">›</span></button>
   </section>
   ${gastarHtml(items)}
   ${limitesHtml(items)}
@@ -830,6 +854,47 @@ function atalhosLanc(){
     const k=norm(l.desc).trim();if(!k)continue;const o=m[k]||(m[k]={n:0,desc:l.desc,cat:l.cat,forma:l.forma,data:""});
     o.n++;if(l.data>=o.data){o.data=l.data;o.desc=l.desc;o.cat=l.cat;o.forma=l.forma}}
   return Object.values(m).filter(o=>o.n>=2).sort((a,b)=>b.n-a.n).slice(0,6);
+}
+/* ---------- extrato do mês: tudo que entrou e saiu ---------- */
+function extratoSheet(){
+  const ym=S.month,its=monthItems(ym),sum=a=>a.reduce((s,i)=>s+i.valor,0);
+  const fixoBy=id=>S.config.fixos.find(f=>f.id===id)||{};
+  const ent=its.filter(i=>i.tipo==="receita").sort((a,b)=>b.valor-a.valor);
+  const desp=its.filter(i=>i.tipo!=="receita");
+  const ehInv=i=>i.fixo&&(fixoBy(i.id).meta||i.cat==="invest");
+  const inv=desp.filter(ehInv).sort((a,b)=>b.valor-a.valor);
+  const fix=desp.filter(i=>i.fixo&&!ehInv(i)).sort((a,b)=>b.valor-a.valor);
+  const par=desp.filter(i=>!i.fixo&&i.parcela).sort((a,b)=>b.valor-a.valor);
+  const dia=desp.filter(isDiaADia);
+  const E=sum(ent),I=sum(inv),F=sum(fix),P=sum(par),D=sum(dia),SAI=I+F+P+D,res=E-SAI;
+  const byC={};for(const i of dia){const k=i.cat||"outros";(byC[k]=byC[k]||[]).push(i)}
+  const cats=Object.entries(byC).map(([k,a])=>[k,a.sort((x,y)=>(y.data||"").localeCompare(x.data||"")),sum(a)]).sort((a,b)=>b[2]-a[2]);
+  const teto=+S.config.teto||0;
+  const pc=v=>E?Math.round(v/E*100)+"%":"";
+  const lista=(arr,f)=>arr.length?`<div class="list">${arr.map(i=>cardItemRow(i,f?f(i):(formaById(i.forma)||{}).nome)).join("")}</div>`:"";
+  const sec=(t,v,extra)=>`<div class="ext-sec"><h2>${t}</h2><b class="num">${money(v)}${extra?` <span class="note">${extra}</span>`:""}</b></div>`;
+  const seg=[[I,"var(--pos)","Investido"],[F,"var(--c0)","Fixos"],[P,"var(--c1)","Parcelas"],[D,"var(--c2)","Dia a dia"]];
+  const resv=ym>=ymOf(today())&&teto?Math.max(0,teto-D):0,sob=res-resv,livre=Math.max(0,sob),totBar=Math.max(E,SAI+resv,1);
+  openSheet(`<h3>Entradas e saídas · ${esc(ymLabel(ym))}</h3>
+    <div class="ext-res"><div><span>Entrou</span><b class="num" style="color:var(--pos)">${money(E)}</b></div><div><span>Saiu</span><b class="num" style="color:var(--neg)">${money(SAI)}</b></div><div><span>Sobra</span><b class="num ${sob<0?"negtxt":""}">${money(sob)}</b></div></div>
+    ${resv?`<p class="note" style="margin:0">A sobra já desconta ${money(resv)} que ainda faltam do teto do dia a dia.</p>`:""}
+    <div class="ext-bar">${seg.filter(s=>s[0]>0).map(s=>`<i style="width:${(s[0]/totBar*100).toFixed(2)}%;background:${s[1]}"></i>`).join("")}${resv?`<i style="width:${(resv/totBar*100).toFixed(2)}%;background:var(--c2);opacity:.35"></i>`:""}${livre?`<i style="width:${(livre/totBar*100).toFixed(2)}%;background:var(--free)"></i>`:""}</div>
+    <div class="ext-leg">${seg.filter(s=>s[0]>0).map(s=>`<span><i class="lg" style="background:${s[1]}"></i>${s[2]} ${pc(s[0])}</span>`).join("")}${resv?`<span><i class="lg" style="background:var(--c2);opacity:.35"></i>Reservado p/ dia a dia ${pc(resv)}</span>`:""}${livre?`<span><i class="lg" style="background:var(--free)"></i>Sobra ${pc(livre)}</span>`:""}</div>
+    ${sec("Entradas",E)}${ent.length?lista(ent,i=>i.fixo?"Todo mês":(catById(i.cat)||{}).nome):`<div class="empty"><b>Nenhuma entrada em ${esc(ymLabel(ym))}</b></div>`}
+    ${inv.length?sec("Investimentos",I,pc(I)+" da renda")+lista(inv,i=>{const m=(S.config.metas||[]).find(x=>x.id===fixoBy(i.id).meta);return m?"→ "+m.nome:"Investimento"}):""}
+    ${fix.length?sec("Contas fixas",F,pc(F)+" da renda")+lista(fix):""}
+    ${par.length?sec("Parcelas",P,pc(P)+" da renda")+lista(par):""}
+    ${sec("Dia a dia",D,teto?"de "+money(teto)+" do teto":"")}
+    ${cats.length?`<div class="list">${cats.map(([k,a,v])=>{const c=catById(k);return`<details class="ext-cat"><summary><span class="dot" style="background:${catColor(k)}"></span><span class="n">${esc(c?c.nome:"Outros")}<small>${a.length} ${a.length===1?"compra":"compras"}</small></span><b class="num">${money(v)}</b></summary>${a.map(i=>cardItemRow(i,(formaById(i.forma)||{}).nome)).join("")}</details>`}).join("")}</div>`:`<div class="empty"><b>Nenhuma compra do dia a dia ainda</b></div>`}
+    <p class="note">Toque num item para corrigir. Dia a dia = compras à vista, sem fixos e parcelas.</p>
+    <button class="btn ghost" id="cat-close" style="width:100%">Fechar</button>`,root=>{
+    root.addEventListener("click",e=>{
+      if(e.target.closest("#cat-close")){S.returnCat=null;closeSheet();return}
+      const b=e.target.closest("[data-edit]");if(!b)return;
+      const[t,id]=b.dataset.edit.split(/:(.+)/);S.returnCat="ext:";
+      if(t==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}
+    });
+  });
 }
 function cartoesMesHtml(){
   const fs=allFormas().filter(f=>+f.limite>0);if(!fs.length)return"";
@@ -1414,7 +1479,7 @@ function catSheet(k){
     });
   });
 }
-function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c==="teto:")tetoSheet();else if(c.startsWith("dia:"))diaSheet(c.slice(4));else if(c.startsWith("card:"))cardSheet(c.slice(5));else catSheet(c)}}
+function backToCat(){if(S.returnCat){const c=S.returnCat;S.returnCat=null;if(c==="teto:")tetoSheet();else if(c.startsWith("dia:"))diaSheet(c.slice(4));else if(c.startsWith("card:"))cardSheet(c.slice(5));else if(c==="ext:")extratoSheet();else catSheet(c)}}
 function cardItemRow(i,extra){
   const c=catById(i.cat);
   const sub=[i.fixo?"Fixo":null,i.parcela?"Parcela "+i.parcela:null,c?c.nome:null,i.data&&!i.fixo&&(!i.parcela||i.parcela.startsWith("1/"))?new Date(i.data+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}):null,extra||null].filter(Boolean).join(" · ");
@@ -1649,6 +1714,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#sim-open")){simSheet();return}
   if(t.closest("#compra-open")){compraSheet();return}
   if(t.closest("#rel-open")){relatorioSheet();return}
+  if(t.closest("#ext-open")||t.closest("#ext-open2")){extratoSheet();return}
   const mt=t.closest("[data-meta-tab]");if(mt){S.metaTab=mt.dataset.metaTab;LS.set("cm.metaTab",S.metaTab);render();return}
   const curMeta=()=>S.config.metas.find(x=>x.id===S.metaTab)||S.config.metas[0];
   if(t.closest("#meta-dep")){depSheet(curMeta());return}
