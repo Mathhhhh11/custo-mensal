@@ -665,7 +665,8 @@ function renderMes(){
   const items=monthItems(S.month);
   const ent=items.filter(i=>i.tipo==="receita").reduce((a,i)=>a+i.valor,0);
   const sai=items.filter(i=>i.tipo!=="receita").reduce((a,i)=>a+i.valor,0);
-  const saldo=ent-sai;
+  const tetoM=+S.config.teto||0,ddM=items.filter(isDiaADia).reduce((a,i)=>a+i.valor,0);
+  const resvM=S.month>=ymOf(today())&&tetoM?Math.max(0,tetoM-ddM):0,saldo=ent-sai-resvM;
   const desp=items.filter(i=>i.tipo!=="receita");
   // by forma
   const byF={};for(const i of desp){const k=i.forma||"_";byF[k]=(byF[k]||0)+i.valor}
@@ -714,7 +715,7 @@ function renderMes(){
   <div class="headrow">${statusLine()}<button class="relbtn" id="rel-open" aria-label="Relatório do mês: enviar no WhatsApp ou salvar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/></svg>Relatório</button></div>
   ${ritmoHtml(items)}
   <section class="summary" aria-label="Resumo do mês">
-    <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div></div>
+    <div><div class="saldo-label">Disponível no mês</div><div class="saldo num ${saldo<0?"neg":""}">${money(saldo)}</div>${resvM?`<div class="note" style="margin-top:4px">Já reservando ${money(resvM)} que faltam do teto do dia a dia.</div>`:""}</div>
     <div class="io ext-io" id="ext-open2"><div class="in"><span>Entradas</span><b class="num">${money(ent)}</b></div><div class="out"><span>Saídas ${delta(sai,saiAnt,true)}</span><b class="num">${money(sai)}</b></div></div>
     <div><span class="meter">${meter}</span><div class="meter-cap num" style="margin-top:6px"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
     <button class="ext-link" id="ext-open">Ver tudo que entrou e saiu<span aria-hidden="true">›</span></button>
