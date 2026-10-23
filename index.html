@@ -739,7 +739,7 @@ function renderMes(){
 /* ---------- quanto posso gastar (meta + teto + previsão) ---------- */
 function gastarHtml(items){
   const ym=S.month,c=calcMes(items,ym),teto=+S.config.teto||0,meta=metaGuardarMes(ym);
-  const cxm=c.passado?0:caixMensal();
+  const cxm=c.passado?0:caixMensal(S.month);
   const base=c.ent-c.fix-c.par-cxm;            // o que sobra depois de fixos, parcelas e caixinhas
   const orcMeta=base-meta;                      // dia a dia possível cumprindo a meta
   const lims=[{k:"meta",v:orcMeta}];if(teto)lims.push({k:"teto",v:teto});
@@ -1048,17 +1048,22 @@ function assinaturasHtml(){
     <p class="note">Conta só o que cai nos próximos 12 meses. Toque numa assinatura para editar ou definir quando ela termina.</p></section>`;
 }
 /* ---------- caixinhas ---------- */
-function caixCalc(c){const hoje=ymOf(today());const guard=(c.depositos||[]).reduce((s,d)=>s+(+d.valor||0),0);
+function caixCalc(c,ym){const hoje=ymOf(today());const guard=(c.depositos||[]).reduce((s,d)=>s+(+d.valor||0),0);
   const jaMes=(c.depositos||[]).some(d=>d.mes===hoje),depMes=(c.depositos||[]).filter(d=>d.mes===hoje).reduce((s,d)=>s+(+d.valor||0),0);
-  const falta=Math.max(0,(+c.alvo||0)-guard),meses=Math.max(1,diffM(c.mes,hoje)-(jaMes?1:0)),porMes=falta?Math.ceil(falta/meses):0;
-  return{guard,falta,meses,porMes,jaMes,depMes,vencida:c.mes<hoje}}
-function caixMensal(){return(S.config.caixinhas||[]).reduce((s,c)=>{const k=caixCalc(c);return s+(k.jaMes?k.depMes:k.vencida?0:k.porMes)},0)}
+  const falta=Math.max(0,(+c.alvo||0)-guard),meses=Math.max(1,diffM(c.mes,hoje)-(jaMes?1:0));
+  const ini=jaMes?addM(hoje,1):hoje,pl=c.plano||{},pk=Object.keys(pl).filter(k=>k>=ini&&k<c.mes).sort();
+  const pSum=pk.reduce((s,k)=>s+(+pl[k]||0),0),livres=meses-pk.length;
+  const base=falta&&livres>0?Math.ceil(Math.max(0,falta-pSum)/livres):0,alvoM=ym||hoje;
+  const porMes=falta?(Object.prototype.hasOwnProperty.call(pl,alvoM)?Math.min(+pl[alvoM]||0,falta):base):0;
+  return{guard,falta,meses,porMes,base,livres,plano:pk.map(k=>[k,+pl[k]||0]),jaMes,depMes,vencida:c.mes<hoje}}
+function caixMensal(ym){const hoje=ymOf(today());ym=ym||hoje;return(S.config.caixinhas||[]).reduce((s,c)=>{const k=caixCalc(c,ym);if(ym>hoje)return s+(k.vencida||ym>=c.mes?0:k.porMes);return s+(k.jaMes?k.depMes:k.vencida?0:k.porMes)},0)}
+function caixPlanoTxt(k){return k.plano.length?" · "+k.plano.map(([m,v])=>esc(ymLabel(m))+": "+money(v)).join(", "):""}
 function caixinhasHtml(){
   const cx=S.config.caixinhas||[];
   const rows=cx.map(c=>{const k=caixCalc(c),p=c.alvo?Math.min(100,k.guard/c.alvo*100):0;
     return`<div class="cx" data-cx="${esc(c.id)}"><div class="cx-top"><button class="cx-name" data-cx-edit="${esc(c.id)}">${esc(c.nome)} <small>· ${esc(ymLabel(c.mes))}</small></button><b class="num">${money(k.guard)} <small>de ${money(c.alvo)}</small></b></div>
       <span class="bar"><i style="width:${p.toFixed(1)}%;background:var(--pos)"></i></span>
-      <div class="cx-bot"><span>${k.falta<=0?"✓ Completa":k.vencida?"Data passou":`Guarde <b class="num">${money(k.porMes)}/mês</b> por ${k.meses} ${k.meses===1?"mês":"meses"}`}</span>
+      <div class="cx-bot"><span>${k.falta<=0?"✓ Completa":k.vencida?"Data passou":`Guarde <b class="num">${money(k.base)}/mês</b> por ${k.livres} ${k.livres===1?"mês":"meses"}${caixPlanoTxt(k)}`}</span>
       ${k.falta>0&&!k.vencida?(k.jaMes?`<span class="cx-ok">✓ guardado este mês</span>`:`<button class="cx-btn" data-cx-dep="${esc(c.id)}">Guardei ${money(Math.min(k.porMes,k.falta))}</button>`):""}</div></div>`}).join("");
   return`<section class="block"><h2>Caixinhas</h2>
     <p class="note" style="margin:0">Separe um pouco por mês para gastos que você já sabe que vêm. O valor mensal sai do seu limite do dia a dia, junto com a meta de guardar.</p>
@@ -1074,7 +1079,7 @@ function caixSheet(c,nomeSug){
     <div class="hint" id="cx-h"></div>
     <div class="actions">${novo?"":`<button class="btn danger" id="cx-del">Excluir</button>`}<button class="btn" id="cx-ok">Salvar</button></div>`,root=>{
     const $=s=>root.querySelector(s);
-    const upd=()=>{const v=toCents($("#cx-v").value),m=$("#cx-m").value||c.mes,k=caixCalc({...c,alvo:v,mes:m});$("#cx-h").innerHTML=v?`Guarde <b>${money(k.porMes)}</b> por mês durante ${k.meses} ${k.meses===1?"mês":"meses"}.`:"Digite o valor total."};
+    const upd=()=>{const v=toCents($("#cx-v").value),m=$("#cx-m").value||c.mes,k=caixCalc({...c,alvo:v,mes:m});$("#cx-h").innerHTML=v?`Guarde <b>${money(k.base)}</b> por mês durante ${k.livres} ${k.livres===1?"mês":"meses"}${caixPlanoTxt(k)}.`:"Digite o valor total."};
     upd();$("#cx-v").addEventListener("input",upd);$("#cx-m").addEventListener("change",upd);
     $("#cx-ok").addEventListener("click",()=>{const o={...c,nome:$("#cx-n").value.trim()||"Caixinha",alvo:toCents($("#cx-v").value),mes:$("#cx-m").value||c.mes};if(!o.alvo)return;
       S.config.caixinhas=[...(S.config.caixinhas||[]).filter(x=>x.id!==o.id),o];closeSheet();saveConfig();toast("Caixinha salva")});
@@ -1099,7 +1104,7 @@ function guardadoNoMes(ym){for(const m of S.config.metas||[])for(const d of m.de
 function guardarHtml(items){
   const ym=S.month,meta=metaGuardarMes(ym),c=calcMes(items,ym);
   if(!meta)return`<button class="row sim-card gm-empty" id="gm-set"><span class="main"><span class="t">Definir quanto guardar este mês</span><span class="s">O app calcula quanto sobra para o dia a dia</span></span><span class="chev" aria-hidden="true">›</span></button>`;
-  const cxm=c.atual||!c.passado?caixMensal():0,orc=c.ent-c.fix-c.par-meta-cxm,resta=orc-c.dd,porDia=c.rest>0?Math.floor(resta/c.rest):0;
+  const cxm=c.atual||!c.passado?caixMensal(S.month):0,orc=c.ent-c.fix-c.par-meta-cxm,resta=orc-c.dd,porDia=c.rest>0?Math.floor(resta/c.rest):0;
   const projGuarda=c.ent-c.fix-c.par-c.projDia,pct=meta?Math.max(0,Math.min(100,projGuarda/meta*100)):0;
   const feito=guardadoNoMes(ym);
   const st=feito?"ok":orc<0?"over":(c.atual&&projGuarda<meta)||(!c.atual&&!c.passado&&false)?"warn":resta<0?"over":"ok";
