@@ -386,6 +386,14 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .amount input{border:0;background:none;font-family:var(--display);font-size:40px;font-weight:800;width:100%;min-width:0;outline:none;font-variant-numeric:tabular-nums}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
 .inp{border:1px solid var(--line);background:var(--sunk);border-radius:10px;padding:11px 12px;font-size:16px;width:100%;min-width:0;color:var(--ink);font-weight:500;letter-spacing:0}
+.voz{display:flex;gap:8px;align-items:center}
+.voz .inp{flex:1}
+.voz-mic{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer}
+.voz-mic.on{animation:vozp 1.1s ease-out infinite}
+@keyframes vozp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}100%{box-shadow:0 0 0 14px transparent}}
+@media (prefers-reduced-motion:reduce){.voz-mic.on{animation:none;outline:3px solid var(--accent-soft)}}
+.voz-st{font-size:13px;color:var(--muted);line-height:1.4}
+.voz-st b{color:var(--ink)}
 .inp:focus{border-color:var(--accent);outline:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:7px 12px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
@@ -855,6 +863,84 @@ function atalhosLanc(){
     const k=norm(l.desc).trim();if(!k)continue;const o=m[k]||(m[k]={n:0,desc:l.desc,cat:l.cat,forma:l.forma,data:""});
     o.n++;if(l.data>=o.data){o.data=l.data;o.desc=l.desc;o.cat=l.cat;o.forma=l.forma}}
   return Object.values(m).filter(o=>o.n>=2).sort((a,b)=>b.n-a.n).slice(0,6);
+}
+/* ---------- lançamento por voz / texto ---------- */
+const VOZ_NUM={zero:0,um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12,treze:13,quatorze:14,catorze:14,quinze:15,dezesseis:16,dezessete:17,dezoito:18,dezenove:19,vinte:20,trinta:30,quarenta:40,cinquenta:50,sessenta:60,setenta:70,oitenta:80,noventa:90,cem:100,cento:100,duzentos:200,duzentas:200,trezentos:300,trezentas:300,quatrocentos:400,quatrocentas:400,quinhentos:500,quinhentas:500,seiscentos:600,seiscentas:600,setecentos:700,setecentas:700,oitocentos:800,oitocentas:800,novecentos:900,novecentas:900};
+function vozPalavrasNum(s){
+  // troca números por extenso ("trinta e dois", "mil e duzentos") por dígitos
+  const pal=Object.keys(VOZ_NUM).concat(["mil"]).join("|");
+  const re=new RegExp("\\b(?:"+pal+")(?:\\s+(?:e\\s+)?(?:"+pal+"))*\\b","g");
+  return s.replace(re,m=>{let tot=0,cur=0;for(const w of m.split(/\s+/)){if(w==="e")continue;if(w==="mil"){tot+=(cur||1)*1000;cur=0}else cur+=VOZ_NUM[w]||0}return String(tot+cur)});
+}
+const VOZ_CAT=[
+  [/almoc|jantar|janta|lanche|ifood|i food|restaurante|pizza|sushi|cafe|starbucks|acai|padaria|supermercado|mercado|supernosso|verdemar|epa\b|burgu|hamburg|comida|chocolate|sorvete|engenheiros|marmita|bebida|cerveja|delivery|feira|acougue|hortifruti/,["comida","alimentacao","mercado"]],
+  [/uber|\b99\b|onibus|bh ?bus|gasolina|combustivel|etanol|posto|estacionamento|metro|taxi|pedagio|passagem|move\b/,["transporte"]],
+  [/farmacia|araujo|drogaria|drogasil|pacheco|medico|consulta|exame|dentista|remedio|academia|psicolog/,["saude"]],
+  [/apple|icloud|spotify|netflix|canva|assinatura|youtube|disney|prime|hbo|max\b|deezer|chatgpt|claude|curso/,["assin","assinatura"]],
+  [/cinema|show|ingresso|jogo|beach|bar\b|balada|festa|viagem|passeio|atletico|estadio|cabelo|barbeiro|games?\b|steam|playstation|nintendo|switch/,["lazer"]],
+  [/presente|aniversario/,["presentes","presente"]],
+  [/roupa|tenis|calca|camisa|camiseta|amazon|mercado livre|shopee|aliexpress|shein|loja|capinha|carregador|fone/,["compras"]],
+  [/aluguel|condominio|luz\b|energia|cemig|agua\b|internet|faxin|casa\b|movel|moveis/,["casa"]],
+  [/racao|pet\b|veterinar|cachorro|gato/,["pet"]],
+];
+function vozCat(descN){
+  // 1) histórico: mesmo nome já lançado antes
+  const hist=S.lanc.filter(l=>l.tipo!=="receita"&&l.desc&&l.cat&&catById(l.cat)).sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  const k=descN.trim();
+  if(k){const h=hist.find(l=>norm(l.desc).trim()===k)||hist.find(l=>{const d=norm(l.desc).trim();return d.length>2&&(k.startsWith(d)||d.startsWith(k))});if(h)return{cat:h.cat,forma:h.forma}}
+  // 2) palavras-chave
+  for(const[re,ids]of VOZ_CAT)if(re.test(descN)){
+    for(const id of ids){const c=S.config.categorias.find(c=>c.id===id||norm(c.nome)===id);if(c)return{cat:c.id}}}
+  return{};
+}
+function vozParse(txt){
+  const r={raw:txt};let s=" "+norm(txt).replace(/r\$\s*/g," rs ").replace(/[!?;]/g," ")+" ";
+  s=vozPalavrasNum(s);
+  // tipo
+  if(/\b(recebi|receber|ganhei|entrada|entrou|caiu|reembolso|me pagou|me pagaram|me mandou|transferiu pra mim|salario)\b/.test(s))r.tipo="receita";
+  // parcelas
+  let m=s.match(/\b(?:em|parcelad[oa] em|dividid[oa] em)?\s*(\d{1,2})\s*(?:x|vezes|parcelas)\b/);
+  if(m&&+m[1]>=1&&+m[1]<=24){r.parcelas=+m[1];s=s.replace(m[0]," ")}
+  if(/\ba vista\b/.test(s)){r.parcelas=r.parcelas||1;s=s.replace(/\ba vista\b/," ")}
+  // data
+  const hoje=today(),d0=new Date(hoje+"T12:00:00"),fmt=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  const menos=n=>{const d=new Date(d0);d.setDate(d.getDate()-n);return fmt(d)};
+  if(/\banteontem\b/.test(s)){r.data=menos(2);s=s.replace(/\banteontem\b/," ")}
+  else if(/\bontem\b/.test(s)){r.data=menos(1);s=s.replace(/\bontem\b/," ")}
+  else if(/\bhoje\b/.test(s)){r.data=hoje;s=s.replace(/\bhoje\b/," ")}
+  else if((m=s.match(/\b(?:no |na )?dia (\d{1,2})\b/))&&+m[1]>=1&&+m[1]<=31){let ym=ymOf(hoje);if(+m[1]>d0.getDate())ym=addM(ym,-1);r.data=ym+"-"+pad(+m[1]);s=s.replace(m[0]," ")}
+  else{const dias=["domingo","segunda","terca","quarta","quinta","sexta","sabado"];
+    const mm=s.match(/\b(?:na |no |n[ao] ultim[ao] )?(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:-feira| feira)?\b/);
+    if(mm){let back=(d0.getDay()-dias.indexOf(mm[1])+7)%7;if(!back)back=7;r.data=menos(back);s=s.replace(mm[0]," ")}}
+  // forma de pagamento (nomes do app, tolerando espaços: "pag bank")
+  let best=null;const PREP="(?:no|na|pelo|pela|com o|com a|via|usando o|usando a|cartao do|cartao da|cartao|no cartao|no cartao do)";
+  for(const f of allFormas()){const n=norm(f.nome).replace(/^cartao\s+/,"").replace(/\s+/g,"");if(n.length<2||n==="va")continue;
+    const alias=[n];if(n==="pagbank")alias.push("pagbanco","paguebank","pagbanc","pagbenk");
+    for(const a of alias){const pat=a.split("").join("\\s*");
+      const mp=s.match(new RegExp("\\b"+PREP+"\\s+"+pat+"\\b")),ma=mp||s.match(new RegExp("\\b"+pat+"\\b"));if(!ma)continue;
+      if(!mp&&/\b(?:da|do|de|pra|para)\s+$/.test(s.slice(0,ma.index)))continue;
+      const sc=(mp?100:0)+a.length;if(!best||sc>best.sc)best={id:f.id,sc,txt:ma[0]}}}
+  if(best){r.forma=best.id;s=s.replace(best.txt," ")}
+  else if(/\b(?:vale[ -]?alimentacao|vale refeicao|\bva\b)/.test(s)){const va=allFormas().find(f=>norm(f.nome)==="va");if(va){r.forma=va.id;s=s.replace(/\b(?:no |com o |pelo )?(?:vale[ -]?alimentacao|vale refeicao|va)\b/," ")}}
+  // valor: "32 reais e 50 centavos", "32,50", "rs 32", "1.200", "32 e 50"
+  m=s.match(/(?:\brs\s*)?(\d{1,3}(?:\.\d{3})+|\d+)(?:[,.](\d{1,2}))?\s*(?:reais|real|conto|contos|pila)?(?:\s*e\s*(\d{1,2})\s*(?:centavos?)?)?/);
+  if(m){const ints=m[1].replace(/\./g,"");let cents=m[2]?(m[2].length===1?+m[2]*10:+m[2]):(m[3]?+m[3]:0);
+    r.valor=(+ints)*100+cents;s=s.replace(m[0]," ")}
+  // descrição: o que sobrou, sem palavras de ligação
+  const stop=/^(?:gastei|paguei|comprei|compra|compras|foi|de|do|da|dos|das|no|na|em|com|um|uma|o|a|os|as|e|pra|para|por|valor|reais|real|rs|lancamento|lanca|lancar|coloca|coloque|anota|anotar|despesa|recebi|ganhei|entrada|me pagou|centavos?)$/;
+  let words=s.replace(/\s+/g," ").trim().split(" ").filter(Boolean);
+  while(words.length&&stop.test(words[0]))words.shift();
+  while(words.length&&stop.test(words[words.length-1]))words.pop();
+  // recupera a grafia original (com acento) das palavras que sobraram
+  const orig=String(txt).split(/\s+/),origN=orig.map(w=>norm(w).replace(/[^\w-]/g,""));
+  words=words.map(w=>{const i=origN.indexOf(w);return i>=0?orig[i].replace(/[.,!?;:]+$/,""):w});
+  let desc=words.join(" ").trim();
+  if(r.tipo==="receita")desc=desc.replace(/^(?:da|do|de)\s+/i,"");
+  if(desc)desc=desc.charAt(0).toUpperCase()+desc.slice(1);
+  r.desc=desc;
+  if(r.tipo!=="receita"){const c=vozCat(norm(desc));if(c.cat)r.cat=c.cat;if(!r.forma&&c.forma&&formaById(c.forma))r.forma=c.forma}
+  else r.catIn=/salario/.test(norm(txt))?"e-salario":/\b13\b|decimo/.test(norm(txt))?"e-13":"e-outras";
+  return r;
 }
 /* ---------- extrato do mês: tudo que entrou e saiu ---------- */
 function extratoSheet(){
@@ -1551,6 +1637,7 @@ function lancForm(existing,dataPadrao){
   const n0=+L.parcelas||1,ats=existing?[]:atalhosLanc();
   const html=`<h3>${existing?"Editar lançamento":"Novo lançamento"}</h3>
   <div class="seg" id="f-tipo"><button type="button" data-v="despesa">Despesa</button><button type="button" data-v="receita">Entrada</button></div>
+  ${!existing?`<div class="voz"><button type="button" class="voz-mic" id="f-mic" aria-label="Falar o lançamento"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg></button><input class="inp" id="f-voz" placeholder="Fale ou digite: almoço 32 no PagBank" autocomplete="off" enterkeyhint="done" aria-label="Lançamento por voz ou texto"></div><div class="voz-st" id="f-voz-st" aria-live="polite" hidden></div>`:""}
   ${!existing&&ats.length?`<div class="f-at"><label class="f">Atalhos</label><div class="chips" id="f-at" style="margin-top:6px">${ats.map((a,i)=>`<button type="button" class="chip" data-at="${i}">${esc(a.desc)}<small>${a.n}×</small></button>`).join("")}</div></div>`:""}
   <div class="amount"><span>R$</span><input id="f-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(centsToInput(L.valor))}" aria-label="Valor"></div>
   <label class="f">Descrição<input class="inp" id="f-desc" value="${esc(L.desc)}" placeholder="Ex.: Mercado, AliExpress, gasolina" autocomplete="off"></label>
@@ -1608,6 +1695,47 @@ function lancForm(existing,dataPadrao){
     compSel.addEventListener("change",()=>{compManual=compSel.value;update()});
     $("#f-valor").addEventListener("input",update);$("#f-parc").addEventListener("change",update);$("#f-pa").addEventListener("change",update);
     if(!existing)setTimeout(()=>$("#f-valor").focus(),60);
+    const vozIn=$("#f-voz"),vozSt=$("#f-voz-st"),mic=$("#f-mic");
+    if(vozIn){
+      const chipsOn=(sel,attr,v)=>root.querySelectorAll(sel+" .chip").forEach(c=>c.classList.toggle("on",c.dataset[attr]===v));
+      let vozUlt="";
+      const vozAplicar=txt=>{txt=String(txt||"").trim();if(!txt||txt===vozUlt)return;vozUlt=txt;const r=vozParse(txt);
+        if(r.tipo&&r.tipo!==st.tipo){const b=root.querySelector('#f-tipo [data-v="'+r.tipo+'"]');if(b)b.click()}
+        if(r.valor)$("#f-valor").value=centsToInput(r.valor);
+        if(r.desc)$("#f-desc").value=r.desc;
+        if(st.tipo!=="receita"&&r.cat){st.cat=r.cat;chipsOn("#f-cat","cat",r.cat)}
+        if(st.tipo==="receita"&&r.catIn){st.catIn=r.catIn;chipsOn("#f-catin","catin",r.catIn)}
+        if(r.forma){st.forma=r.forma;chipsOn("#f-forma","forma",r.forma);compManual=null}
+        if(r.data){$("#f-data").value=r.data;compManual=null}
+        if(r.parcelas&&st.tipo!=="receita")$("#f-parc").value=String(r.parcelas);
+        st.modo="total";fillComp();update();
+        const it=[],falta=[];
+        it.push(st.tipo==="receita"?"Entrada":"Despesa");
+        if(r.desc)it.push(esc(r.desc));else falta.push("descrição");
+        if(r.valor)it.push(money(r.valor)+(r.parcelas>1&&st.tipo!=="receita"?" em "+r.parcelas+"x":""));else falta.push("valor");
+        const c=catById(st.tipo==="receita"?st.catIn:st.cat);if(c)it.push(esc(c.nome));
+        const f=formaById(st.forma);if(f)it.push(esc(f.nome));if(!r.forma)falta.push("pagamento");
+        if(r.data)it.push(r.data.split("-").reverse().join("/"));
+        vozSt.innerHTML="<b>Entendi:</b> "+it.join(" · ")+(falta.length?"<br>Confira: "+falta.join(", ")+".":"<br>Confira e toque em Salvar.");vozSt.hidden=false};
+      let tm=null;
+      vozIn.addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>vozAplicar(vozIn.value),900)});
+      vozIn.addEventListener("change",()=>{clearTimeout(tm);vozAplicar(vozIn.value)});
+      vozIn.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();clearTimeout(tm);vozAplicar(vozIn.value);vozIn.blur()}});
+      const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+      const semVoz=msg=>{mic.classList.remove("on");vozSt.innerHTML=msg;vozSt.hidden=false;vozIn.focus()};
+      mic.addEventListener("click",()=>{
+        if(rec){try{rec.stop()}catch(_){}return}
+        if(!SR){semVoz("Toque no <b>microfone do teclado</b> e fale o lançamento. Ex.: “almoço 32 reais no PagBank”.");return}
+        try{rec=new SR()}catch(_){rec=null;semVoz("Toque no <b>microfone do teclado</b> e fale o lançamento.");return}
+        rec.lang="pt-BR";rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;let fin="";
+        rec.onresult=e=>{let t="";for(const x of e.results)t+=x[0].transcript;vozIn.value=t;if(e.results[e.results.length-1].isFinal)fin=t};
+        rec.onerror=e=>{const m=e.error;rec=null;if(m==="no-speech"){semVoz("Não ouvi nada. Toque no microfone e fale de novo.");return}
+          semVoz("O microfone do app não funcionou aqui. Toque no <b>microfone do teclado</b> e fale o lançamento.")};
+        rec.onend=()=>{mic.classList.remove("on");rec=null;vozAplicar(fin||vozIn.value)};
+        try{rec.start();mic.classList.add("on");vozSt.innerHTML="Ouvindo… fale valor, o que foi e como pagou.";vozSt.hidden=false}
+        catch(_){rec=null;semVoz("Toque no <b>microfone do teclado</b> e fale o lançamento.")}
+      });
+    }
     const fat=$("#f-at");if(fat)fat.addEventListener("click",e=>{const b=e.target.closest("[data-at]");if(!b)return;const a=ats[+b.dataset.at];
       $("#f-desc").value=a.desc;if(a.cat&&catById(a.cat)){st.cat=a.cat;root.querySelectorAll("#f-cat .chip").forEach(c=>c.classList.toggle("on",c.dataset.cat===a.cat))}
       if(a.forma&&formaById(a.forma)){st.forma=a.forma;root.querySelectorAll("#f-forma .chip").forEach(c=>c.classList.toggle("on",c.dataset.forma===a.forma));compManual=null;fillComp()}
