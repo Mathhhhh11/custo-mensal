@@ -386,6 +386,14 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .amount input{border:0;background:none;font-family:var(--display);font-size:40px;font-weight:800;width:100%;min-width:0;outline:none;font-variant-numeric:tabular-nums}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
 .inp{border:1px solid var(--line);background:var(--sunk);border-radius:10px;padding:11px 12px;font-size:16px;width:100%;min-width:0;color:var(--ink);font-weight:500;letter-spacing:0}
+.comp-head{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;gap:8px;text-align:center}
+.comp-head h3{margin:0}
+.comp-head h3 small{display:block;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-family:var(--body)}
+.comp-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.comp-sum div{background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.comp-sum span{display:block;font-size:11.5px;color:var(--muted);font-weight:600}
+.comp-sum b{display:block;font-size:17px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.comp-sum b.neg{color:var(--neg)}
 .voz{display:flex;gap:8px;align-items:center}
 .voz .inp{flex:1}
 .voz-mic{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer}
@@ -481,14 +489,14 @@ function normalize(c){c=JSON.parse(JSON.stringify(c||{}));return{
   fixos:Array.isArray(c.fixos)?c.fixos:[],
   teto:c.teto===undefined||c.teto===null?175000:Math.max(0,+c.teto||0),
   caixinhas:Array.isArray(c.caixinhas)?c.caixinhas:[],
-  guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",catLim:c.catLim&&typeof c.catLim==="object"?c.catLim:{},catLimMes:c.catLimMes&&typeof c.catLimMes==="object"?c.catLimMes:{},
+  guardar:c.guardar&&typeof c.guardar==="object"?c.guardar:{},guardarPadrao:+c.guardarPadrao||0,guardarMeta:c.guardarMeta||"reserva",catLim:c.catLim&&typeof c.catLim==="object"?c.catLim:{},catLimMes:c.catLimMes&&typeof c.catLimMes==="object"?c.catLimMes:{},compart:c.compart&&typeof c.compart==="object"?c.compart:{nome:"Cartão Rosinha",limite:60000,desde:"2026-11"},
   metas:Array.isArray(c.metas)&&c.metas.length?c.metas:[{id:"reserva",nome:"Reserva",meta:0,inicial:0,depositos:[]},{id:"casa",nome:"Casa com a Rosinha",meta:0,inicial:0,depositos:[]}]}}
 function loadCache(){
   const c=LS.get("cm.config",null);if(c)S.config=normalize(c);
-  S.lanc=LS.get("cm.lanc",[]);S.queue=LS.get("cm.queue",[]);S.api=LS.get("cm.api",null);
+  S.lanc=LS.get("cm.lanc",[]);S.comp=[];splitComp();S.queue=LS.get("cm.queue",[]);S.api=LS.get("cm.api",null);
   S.lastSync=LS.get("cm.lastSync",null);S.planilha=LS.get("cm.planilha",null);
 }
-function saveCache(){LS.set("cm.config",S.config);LS.set("cm.lanc",S.lanc);LS.set("cm.queue",S.queue)}
+function saveCache(){LS.set("cm.config",S.config);LS.set("cm.lanc",[...S.lanc,...(S.comp||[])]);LS.set("cm.queue",S.queue)}
 
 /* ---------- sync with Google Sheets (Apps Script) ---------- */
 function enqueue(op){
@@ -506,7 +514,7 @@ async function callApi(body){
   return j;
 }
 function applyServer(j){
-  S.config=normalize(j.config);S.lanc=Array.isArray(j.lancamentos)?j.lancamentos:[];
+  S.config=normalize(j.config);S.lanc=Array.isArray(j.lancamentos)?j.lancamentos:[];S.comp=[];splitComp();
   for(const l of S.lanc)if(l.tipo==="receita"&&!l.cat&&ehDecimo(l.desc)){l.cat="e-13";enqueue({op:"upsert",lanc:{...l}})}
   S.planilha=j.planilha||S.planilha;LS.set("cm.planilha",S.planilha);
   S.lastSync=new Date().toISOString();LS.set("cm.lastSync",S.lastSync);saveCache();
@@ -532,11 +540,14 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 function saveConfig(){render();enqueue({op:"config",config:JSON.parse(JSON.stringify(S.config))})}
 async function saveLanc(obj){
   const i=S.lanc.findIndex(x=>x.id===obj.id); if(i>=0)S.lanc[i]=obj; else S.lanc.push(obj);
+  S.comp=(S.comp||[]).filter(x=>x.id!==obj.id);splitComp();
   render();enqueue({op:"upsert",lanc:obj});
 }
-async function deleteLanc(id){S.lanc=S.lanc.filter(x=>x.id!==id);render();enqueue({op:"delete",id})}
+async function deleteLanc(id){S.lanc=S.lanc.filter(x=>x.id!==id);S.comp=(S.comp||[]).filter(x=>x.id!==id);render();enqueue({op:"delete",id})}
 
 /* ---------- domain ---------- */
+const COMP_ID="cartao-rosinha",isComp=l=>!!l&&l.forma===COMP_ID;
+function splitComp(){const all=[...(S.lanc||[]),...(S.comp||[])];S.comp=all.filter(isComp);S.lanc=all.filter(l=>!isComp(l))}
 const allFormas=()=>[...S.config.cartoes.map(c=>({...c,cartao:true})),...S.config.formas];
 const formaById=id=>allFormas().find(f=>f.id===id);
 const catById=id=>S.config.categorias.find(c=>c.id===id)||(S.config.catEntrada||[]).find(c=>c.id===id);
@@ -730,6 +741,7 @@ function renderMes(){
   </section>
   ${gastarHtml(items)}
   ${limitesHtml(items)}
+  ${compCardHtml()}
 
   ${calHtml()}
 
@@ -941,6 +953,81 @@ function vozParse(txt){
   if(r.tipo!=="receita"){const c=vozCat(norm(desc));if(c.cat)r.cat=c.cat;if(!r.forma&&c.forma&&formaById(c.forma))r.forma=c.forma}
   else r.catIn=/salario/.test(norm(txt))?"e-salario":/\b13\b|decimo/.test(norm(txt))?"e-13":"e-outras";
   return r;
+}
+/* ---------- cartão compartilhado com a Rosinha (fora do gasto do mês) ---------- */
+function compMes(ym){
+  const out=[];
+  for(const l of S.comp||[]){const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data||today()),k=diffM(ym,c0);
+    if(k<0||k>=n)continue;out.push({l,valor:parcelaValor(+l.valor||0,n,k),parc:n>1?(k+1)+"/"+n:null})}
+  return out.sort((a,b)=>(b.l.data||"").localeCompare(a.l.data||"")||(b.l.criado||"").localeCompare(a.l.criado||""));
+}
+function compResumo(ym){
+  const cp=S.config.compart||{},it=compMes(ym),tot=it.reduce((a,x)=>a+x.valor,0),minha=Math.round(tot/2),lim=+cp.limite||0;
+  const p=lim?minha/lim:0,fr=fracMes(ym),st=p>=1?"over":p>fr+0.1&&p>=0.3?"warn":"ok";
+  return{cp,it,tot,minha,lim,p,fr,st,resta:lim-minha};
+}
+function compCardHtml(){
+  const cp=S.config.compart||{};if(!+cp.limite||S.month<(cp.desde||"0000-00"))return"";
+  const r=compResumo(S.month);
+  return`<section class="block"><div class="secbar"><h2>${esc(cp.nome||"Cartão compartilhado")}</h2><button class="gm-edit" id="comp-add">+ Compra</button></div>
+    <div class="list"><button class="row lim-row ${r.st}" id="comp-open"><span class="dot" style="background:var(--c4)"></span><span class="main"><span class="t num">${money(r.minha)} <small style="font-weight:600;color:var(--muted)">de ${money(r.lim)}</small></span>
+      <span class="s num">Sua parte · ${r.it.length?`cartão ${money(r.tot)} em ${r.it.length} ${r.it.length>1?"compras":"compra"} · `:"nenhuma compra ainda · "}${r.resta>=0?`resta ${money(r.resta)} pra você`:`passou ${money(-r.resta)}`}</span>
+      <span class="teto-bar"><i style="width:${Math.min(100,r.p*100).toFixed(1)}%"></i>${r.fr>0&&r.fr<1?`<em style="left:${(r.fr*100).toFixed(1)}%"></em>`:""}</span></span><span class="v num">${Math.round(r.p*100)}%</span><span class="chev" aria-hidden="true">›</span></button></div>
+    <p class="note">Dividido por 2 com a Rosinha. Não entra no seu gasto do mês: o orçamento já reserva ${money(r.lim)} na conta fixa.</p></section>`;
+}
+function compSheet(ym){
+  ym=ym||S.month;const r=compResumo(ym),hoje=today(),atual=ym===ymOf(hoje);
+  const diasRest=atual?(new Date(+ym.slice(0,4),+ym.slice(5),0).getDate()-(+hoje.slice(8))+1):0;
+  const porDia=atual&&r.resta>0?Math.floor(r.resta*2/diasRest):0;
+  const rows=r.it.map(x=>`<button class="row" data-comp-edit="${esc(x.l.id)}"><span class="dot" style="background:${catColor(x.l.cat)}"></span><span class="main"><span class="t">${esc(x.l.desc||"Sem descrição")}${x.parc?`<span class="tag">${x.parc}</span>`:""}</span><span class="s">${esc((x.l.data||"").split("-").reverse().join("/"))} · cartão ${money(x.valor)}</span></span><span class="v num">− ${money(Math.round(x.valor/2))}</span></button>`).join("");
+  openSheet(`<div class="comp-head"><button class="iconbtn" id="comp-prev" aria-label="Mês anterior">‹</button><h3>${esc(r.cp.nome||"Cartão compartilhado")}<small>${esc(ymLabel(ym))}</small></h3><button class="iconbtn" id="comp-next" aria-label="Próximo mês">›</button></div>
+    <div class="comp-sum">
+      <div><span>Total no cartão</span><b class="num">${money(r.tot)}</b></div>
+      <div><span>Sua parte (½)</span><b class="num">${money(r.minha)}</b></div>
+      <div><span>${r.resta>=0?"Resta pra você":"Passou do limite"}</span><b class="num ${r.resta<0?"neg":""}">${money(Math.abs(r.resta))}</b></div>
+    </div>
+    <div class="lim-row ${r.st}" style="padding:0 2px"><span class="teto-bar"><i style="width:${Math.min(100,r.p*100).toFixed(1)}%"></i>${r.fr>0&&r.fr<1?`<em style="left:${(r.fr*100).toFixed(1)}%"></em>`:""}</span></div>
+    <p class="note">${r.resta>0?`Vocês ainda podem passar <b>${money(r.resta*2)}</b> no cartão este mês (${money(r.resta)} pra cada)${porDia?` · cerca de ${money(porDia)} por dia no cartão`:""}.`:r.resta===0?"Limite do mês atingido.":`A sua parte passou ${money(-r.resta)} do limite de ${money(r.lim)}.`}</p>
+    <button class="btn" id="comp-new" style="width:100%">+ Compra no cartão</button>
+    <h2 style="margin-top:4px">Compras do mês</h2>
+    ${rows?`<div class="list">${rows}</div>`:`<div class="empty"><b>Nenhuma compra em ${esc(MESES[+ym.slice(5)-1])}</b>Toque em “+ Compra no cartão” para registrar.</div>`}
+    <label class="f">Seu limite por mês (sua metade)<input class="inp num" id="comp-lim" inputmode="decimal" value="${esc(centsToInput(r.lim))}"></label>
+    <p class="note">Valores lançados aqui são o total da compra; o app divide por 2. Eles não entram no saldo, no teto nem nos limites do seu mês.</p>
+    <button class="btn ghost" id="comp-close" style="width:100%">Fechar</button>`,root=>{
+    const $=s=>root.querySelector(s);
+    $("#comp-prev").addEventListener("click",()=>compSheet(addM(ym,-1)));
+    $("#comp-next").addEventListener("click",()=>compSheet(addM(ym,1)));
+    $("#comp-new").addEventListener("click",()=>compForm(null,ym));
+    $("#comp-close").addEventListener("click",()=>closeSheet());
+    root.addEventListener("click",e=>{const b=e.target.closest("[data-comp-edit]");if(!b)return;const l=(S.comp||[]).find(x=>x.id===b.dataset.compEdit);if(l)compForm(l,ym)});
+    $("#comp-lim").addEventListener("change",e=>{const v=toCents(e.target.value);if(v<=0)return;S.config.compart={...(S.config.compart||{}),limite:v};saveConfig();toast("Limite atualizado");compSheet(ym)});
+  });
+}
+function compForm(existing,ym){
+  const L=existing||{valor:0,desc:"",data:ym===ymOf(today())?today():ym+"-01",parcelas:1};
+  openSheet(`<h3>${existing?"Editar compra":"Compra no cartão"} · ${esc((S.config.compart||{}).nome||"compartilhado")}</h3>
+    <div class="amount"><span>R$</span><input id="c-valor" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(centsToInput(L.valor))}" aria-label="Valor total da compra"></div>
+    <label class="f">Descrição<input class="inp" id="c-desc" value="${esc(L.desc||"")}" placeholder="Ex.: Mercado, jantar, farmácia" autocomplete="off"></label>
+    <div class="two"><label class="f">Data<input class="inp" type="date" id="c-data" value="${esc(L.data||today())}"></label>
+      <label class="f">Parcelas<select class="inp" id="c-parc">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${i+1===(+L.parcelas||1)?"selected":""}>${i?(i+1)+"x":"À vista"}</option>`).join("")}</select></label></div>
+    <div class="hint" id="c-hint"></div>
+    <div class="actions">${existing?`<button type="button" class="btn danger" id="c-del">Excluir</button>`:""}<button type="button" class="btn ghost" id="c-back">Voltar</button><button type="button" class="btn" id="c-save">Salvar</button></div>`,root=>{
+    const $=s=>root.querySelector(s);let armed=false;
+    const upd=()=>{const v=toCents($("#c-valor").value),n=+$("#c-parc").value;
+      $("#c-hint").innerHTML=v?`Total <b>${money(v)}</b> · sua parte <b>${money(Math.round(v/2))}</b>${n>1?` · ${n}x de ${money(parcelaValor(v,n,1))} no cartão (sua parte ${money(Math.round(parcelaValor(v,n,1)/2))}/mês)`:""}`:"Digite o valor total da compra (o app divide por 2).";
+      $("#c-save").disabled=!v};
+    upd();$("#c-valor").addEventListener("input",upd);$("#c-parc").addEventListener("change",upd);
+    if(!existing)setTimeout(()=>$("#c-valor").focus(),60);
+    $("#c-back").addEventListener("click",()=>compSheet(ym));
+    $("#c-save").addEventListener("click",async()=>{
+      const v=toCents($("#c-valor").value);if(!v)return;const data=$("#c-data").value||today(),desc=$("#c-desc").value.trim()||"Compra";
+      const g=vozCat(norm(desc));
+      const obj={id:existing?existing.id:uid(),tipo:"despesa",valor:v,desc,cat:existing&&existing.cat||g.cat||"casa",forma:COMP_ID,data,parcelas:+$("#c-parc").value||1,comp:ymOf(data),criado:existing?.criado||new Date().toISOString()};
+      await saveLanc(obj);toast(existing?"Compra atualizada":"Compra salva");compSheet(ymOf(data));
+    });
+    const del=$("#c-del");if(del)del.addEventListener("click",async()=>{if(!armed){armed=true;del.classList.add("armed");del.textContent="Confirmar";return}
+      await deleteLanc(existing.id);toast("Compra excluída");compSheet(ym)});
+  });
 }
 /* ---------- extrato do mês: tudo que entrou e saiu ---------- */
 function extratoSheet(){
@@ -1849,6 +1936,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#compra-open")){compraSheet();return}
   if(t.closest("#rel-open")){relatorioSheet();return}
   if(t.closest("#ext-open")||t.closest("#ext-open2")){extratoSheet();return}
+  if(t.closest("#comp-open")){compSheet(S.month);return}
+  if(t.closest("#comp-add")){compForm(null,S.month);return}
   const mt=t.closest("[data-meta-tab]");if(mt){S.metaTab=mt.dataset.metaTab;LS.set("cm.metaTab",S.metaTab);render();return}
   const curMeta=()=>S.config.metas.find(x=>x.id===S.metaTab)||S.config.metas[0];
   if(t.closest("#meta-dep")){depSheet(curMeta());return}
@@ -1981,7 +2070,7 @@ async function connectApi(){
     const j=await callApi({action:"load"});
     LS.set("cm.api",S.api);
     // first connection: send anything typed on this phone before connecting
-    if(!prev&&S.lanc.length){const known=new Set(j.lancamentos.map(l=>l.id));for(const l of S.lanc)if(!known.has(l.id))S.queue.push({op:"upsert",lanc:l})}
+    if(!prev&&(S.lanc.length||S.comp.length)){const known=new Set(j.lancamentos.map(l=>l.id));for(const l of [...S.lanc,...S.comp])if(!known.has(l.id))S.queue.push({op:"upsert",lanc:l})}
     if(S.queue.length){saveCache();S.sync="ok";await flush()}else{applyServer(j);S.sync="ok"}
     toast("Conectado à planilha");S.view="mes";LS.set("cm.view","mes");render();window.scrollTo(0,0);
   }catch(e){
