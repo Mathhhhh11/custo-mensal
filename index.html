@@ -557,7 +557,8 @@ async function deleteLanc(id){S.lanc=S.lanc.filter(x=>x.id!==id);S.comp=(S.comp|
 
 /* ---------- domain ---------- */
 const COMP_ID="cartao-rosinha",isComp=l=>!!l&&l.forma===COMP_ID;
-function splitComp(){const all=[...(S.lanc||[]),...(S.comp||[])];S.comp=all.filter(isComp);S.lanc=all.filter(l=>!isComp(l))}
+const isSep=l=>!!l&&(l.forma===COMP_ID||((S.config&&S.config.formas)||[]).some(f=>f.separado&&f.id===l.forma));
+function splitComp(){const all=[...(S.lanc||[]),...(S.comp||[])];S.comp=all.filter(isSep);S.lanc=all.filter(l=>!isSep(l))}
 const allFormas=()=>[...S.config.cartoes.map(c=>({...c,cartao:true})),...S.config.formas];
 const formaById=id=>allFormas().find(f=>f.id===id);
 const catById=id=>S.config.categorias.find(c=>c.id===id)||(S.config.catEntrada||[]).find(c=>c.id===id);
@@ -752,6 +753,7 @@ function renderMes(){
   ${gastarHtml(items)}
   ${limitesHtml(items)}
   ${compCardHtml()}
+  ${vaCardHtml()}
   ${contasAvisoHtml()}
 
   ${calHtml()}
@@ -968,7 +970,7 @@ function vozParse(txt){
 /* ---------- cartão compartilhado com a Rosinha (fora do gasto do mês) ---------- */
 function compMes(ym){
   const out=[];
-  for(const l of S.comp||[]){const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data||today()),k=diffM(ym,c0);
+  for(const l of S.comp||[]){if(l.forma!==COMP_ID)continue;const n=Math.max(1,+l.parcelas||1),c0=l.comp||ymOf(l.data||today()),k=diffM(ym,c0);
     if(k<0||k>=n)continue;out.push({l,valor:parcelaValor(+l.valor||0,n,k),parc:n>1?(k+1)+"/"+n:null})}
   return out.sort((a,b)=>(b.l.data||"").localeCompare(a.l.data||"")||(b.l.criado||"").localeCompare(a.l.criado||""));
 }
@@ -1088,6 +1090,44 @@ function faturaSheet(cid){
     <div class="list">${xs.map(i=>`<div class="row"><span class="dot" style="background:${catColor(i.cat)}"></span><span class="main"><span class="t">${esc(i.desc||"Sem descrição")}${i.parcela?`<span class="tag">${i.parcela}</span>`:""}${i.fixo?`<span class="tag fix">fixo</span>`:""}</span><span class="s">${esc((catById(i.cat)||{}).nome||"")}</span></span><span class="v num">${money(i.valor)}</span></div>`).join("")}</div>
     <button class="btn ghost" id="fat-close" style="width:100%">Fechar</button>`,root=>{root.querySelector("#fat-close").addEventListener("click",closeSheet)});
 }
+/* ---------- formas separadas (ex.: VA): fora do gasto do mês ---------- */
+function sepFormas(){return(S.config.formas||[]).filter(f=>f.separado)}
+function sepMes(fid,ym){
+  const out=[];
+  for(const l of S.comp||[]){if(l.forma!==fid)continue;const n=Math.max(1,+l.parcelas||1),k=diffM(ym,l.comp||ymOf(l.data||today()));
+    if(k<0||k>=n)continue;out.push({l,valor:parcelaValor(+l.valor||0,n,k),parc:n>1?(k+1)+"/"+n:null})}
+  return out.sort((a,b)=>(b.l.data||"").localeCompare(a.l.data||"")||(b.l.criado||"").localeCompare(a.l.criado||""));
+}
+function vaCardHtml(){
+  return sepFormas().map(f=>{const it=sepMes(f.id,S.month),tot=it.reduce((a,x)=>a+x.valor,0),lim=+f.limite||0;
+    const p=lim?tot/lim:0,fr=fracMes(S.month),st=p>=1?"over":p>fr+0.1&&p>=0.3?"warn":"ok",resta=lim-tot;
+    return`<section class="block"><div class="secbar"><h2>${esc(f.nome==="VA"?"Vale-alimentação":f.nome)}</h2><button class="gm-edit" data-va-add="${esc(f.id)}">+ Compra</button></div>
+    <div class="list"><button class="row lim-row ${st}" data-va-open="${esc(f.id)}"><span class="dot" style="background:var(--c2)"></span><span class="main"><span class="t num">${money(tot)}${lim?` <small style="font-weight:600;color:var(--muted)">de ${money(lim)}</small>`:""}</span>
+      <span class="s num">${it.length?`${it.length} ${it.length>1?"compras":"compra"}`:"Nenhuma compra ainda"}${lim?` · ${resta>=0?`resta ${money(resta)}`:`passou ${money(-resta)}`}`:""}</span>
+      ${lim?`<span class="teto-bar"><i style="width:${Math.min(100,p*100).toFixed(1)}%"></i>${fr>0&&fr<1?`<em style="left:${(fr*100).toFixed(1)}%"></em>`:""}</span>`:""}</span>${lim?`<span class="v num">${Math.round(p*100)}%</span>`:""}<span class="chev" aria-hidden="true">›</span></button></div>
+    <p class="note">Pago com o cartão ${esc(f.nome)}. Não entra no seu gasto do mês nem no salário.</p></section>`}).join("");
+}
+function vaSheet(fid,ym){
+  const f=formaById(fid);if(!f)return;ym=ym||S.month;
+  const it=sepMes(fid,ym),tot=it.reduce((a,x)=>a+x.valor,0),lim=+f.limite||0,resta=lim-tot;
+  const rows=it.map(x=>`<button class="row" data-va-edit="${esc(x.l.id)}"><span class="dot" style="background:${catColor(x.l.cat)}"></span><span class="main"><span class="t">${esc(x.l.desc||"Sem descrição")}${x.parc?`<span class="tag">${x.parc}</span>`:""}</span><span class="s">${esc((x.l.data||"").split("-").reverse().join("/"))}</span></span><span class="v num">− ${money(x.valor)}</span></button>`).join("");
+  openSheet(`<div class="comp-head"><button class="iconbtn" id="va-prev" aria-label="Mês anterior">‹</button><h3>${esc(f.nome==="VA"?"Vale-alimentação":f.nome)}<small>${esc(ymLabel(ym))}</small></h3><button class="iconbtn" id="va-next" aria-label="Próximo mês">›</button></div>
+    <div class="comp-sum cp-sum"><div><span>Gasto no mês</span><b class="num">${money(tot)}</b></div><div><span>Saldo do mês</span><b class="num">${money(lim)}</b></div><div><span>${resta>=0?"Resta":"Passou"}</span><b class="num ${resta<0?"neg":"ok"}">${money(Math.abs(resta))}</b></div></div>
+    <button class="btn" id="va-new" style="width:100%">+ Compra no ${esc(f.nome)}</button>
+    <h2 style="margin-top:4px">Compras do mês</h2>
+    ${rows?`<div class="list">${rows}</div>`:`<div class="empty"><b>Nenhuma compra em ${esc(MESES[+ym.slice(5)-1])}</b>No lançamento normal, escolha a forma de pagamento “${esc(f.nome)}”.</div>`}
+    <label class="f">Valor que cai por mês<input class="inp num" id="va-lim" inputmode="decimal" value="${esc(centsToInput(lim))}"></label>
+    <button class="btn ghost" id="va-close" style="width:100%">Fechar</button>`,root=>{
+    const $=s=>root.querySelector(s);
+    $("#va-prev").addEventListener("click",()=>vaSheet(fid,addM(ym,-1)));
+    $("#va-next").addEventListener("click",()=>vaSheet(fid,addM(ym,1)));
+    $("#va-new").addEventListener("click",()=>vaNova(fid));
+    $("#va-close").addEventListener("click",closeSheet);
+    root.addEventListener("click",e=>{const b=e.target.closest("[data-va-edit]");if(!b)return;const l=(S.comp||[]).find(x=>x.id===b.dataset.vaEdit);if(l)lancForm(l)});
+    $("#va-lim").addEventListener("change",e=>{const v=toCents(e.target.value);if(v<0)return;S.config.formas=S.config.formas.map(x=>x.id===fid?{...x,limite:v}:x);saveConfig();toast("Valor atualizado");vaSheet(fid,ym)});
+  });
+}
+function vaNova(fid){const pf=S.lastForma,pc=S.lastCat;S.lastForma=fid;const c=S.config.categorias.find(c=>c.id==="comida");if(c)S.lastCat=c.id;lancForm(null);S.lastForma=pf;S.lastCat=pc}
 /* ---------- extrato do mês: tudo que entrou e saiu ---------- */
 function extratoSheet(){
   const ym=S.month,its=monthItems(ym),sum=a=>a.reduce((s,i)=>s+i.valor,0);
@@ -1781,7 +1821,7 @@ function lancForm(existing,dataPadrao){
   const L=existing||{tipo:"despesa",valor:0,desc:"",cat:S.lastCat||S.config.categorias[0]?.id,forma:S.lastForma||allFormas()[0]?.id,
     data:dataPadrao||(S.month===ymOf(today())?today():S.month+"-01"),parcelas:1};
   const st={tipo:L.tipo||"despesa",cat:L.tipo==="receita"?(S.lastCat||S.config.categorias[0]?.id):L.cat,catIn:L.tipo==="receita"&&L.cat?L.cat:(ehDecimo(L.desc)?"e-13":"e-outras"),forma:L.forma,modo:"total",confirm:false};
-  const n0=+L.parcelas||1,ats=existing?[]:atalhosLanc();
+  const n0=+L.parcelas||1,ats=[];
   const html=`<h3>${existing?"Editar lançamento":"Novo lançamento"}</h3>
   <div class="seg" id="f-tipo"><button type="button" data-v="despesa">Despesa</button><button type="button" data-v="receita">Entrada</button></div>
   ${!existing?`<div class="voz"><button type="button" class="voz-mic" id="f-mic" aria-label="Falar o lançamento"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8"/></svg></button><input class="inp" id="f-voz" placeholder="Fale ou digite: almoço 32 no PagBank" autocomplete="off" enterkeyhint="done" aria-label="Lançamento por voz ou texto"></div><div class="voz-st" id="f-voz-st" aria-live="polite" hidden></div>`:""}
@@ -1903,7 +1943,7 @@ function lancForm(existing,dataPadrao){
       if(!obj.desc)av.push("Falta a descrição.");
       const sig=av.join("|");
       if(av.length&&st.avisoSig!==sig){st.avisoSig=sig;const w=$("#f-warn");w.innerHTML=`<b>Confere antes de salvar:</b><ul>${av.map(a=>`<li>${a}</li>`).join("")}</ul>`;w.hidden=false;$("#f-save").textContent="Salvar mesmo assim";w.scrollIntoView({block:"nearest",behavior:"smooth"});return}
-      if(obj.tipo!=="receita")S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita")S.lastForma=obj.forma;
+      if(obj.tipo!=="receita")S.lastCat=obj.cat||S.lastCat;if(obj.tipo!=="receita"&&!isSep(obj))S.lastForma=obj.forma;
       closeSheet();await saveLanc(obj);toast(existing?"Lançamento atualizado":"Lançamento salvo");backToCat();
     });
     const del=$("#f-del");
@@ -1997,6 +2037,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#rel-open")){relatorioSheet();return}
   if(t.closest("#ext-open")||t.closest("#ext-open2")){extratoSheet();return}
   if(t.closest("#comp-open")){compSheet(S.month);return}
+  const vao=t.closest("[data-va-open]");if(vao){vaSheet(vao.dataset.vaOpen);return}
+  const vaa=t.closest("[data-va-add]");if(vaa){vaNova(vaa.dataset.vaAdd);return}
   const pgb=t.closest("[data-pago]");if(pgb){contaTogglePago(pgb.dataset.pago);return}
   const fb=t.closest("[data-fatura]");if(fb){faturaSheet(fb.dataset.fatura);return}
   if(t.closest("#cp-prev")){S.month=addM(S.month,-1);render();return}
