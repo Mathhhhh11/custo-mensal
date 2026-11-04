@@ -1790,7 +1790,9 @@ function cardSheet(fid){
     <div><div class="cat-total num">${money(tot)}</div><div class="note">gasto em ${ymLabel(S.month)} · ${items.length} ${items.length===1?"item":"itens"} · toque em um item para corrigir</div></div>
     ${limHtml}
     ${items.length?"":`<div class="empty"><b>Nada neste cartão em ${ymLabel(S.month)}</b></div>`}
-    ${sec("Compras do mês",novas)}
+    ${sec("Alimentação",novas.filter(i=>i.cat==="comida"))}
+    ${sec("Transporte",novas.filter(i=>i.cat==="transporte"))}
+    ${sec("Outras compras",novas.filter(i=>i.cat!=="comida"&&i.cat!=="transporte"))}
     ${sec("Parcelas de compras anteriores",antigas)}
     ${sec("Contas fixas",fix)}
     ${fut.length?`<h2>Parcelas que ainda vão cair · ${money(futTot)}</h2><div class="list">${fut.map(x=>`<button class="row" data-edit="l:${esc(x.l.id)}"><span class="dot" style="background:${catColor(x.l.cat)}"></span><span class="main"><span class="t">${esc(x.l.desc||"Sem descrição")}</span><span class="s">${x.cnt} ${x.cnt>1?"parcelas":"parcela"} · até ${ymShort(x.last)}</span></span><span class="v num">${money(x.rest)}</span><span class="chev" aria-hidden="true">›</span></button>`).join("")}</div>`:""}
