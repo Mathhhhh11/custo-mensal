@@ -750,6 +750,7 @@ function renderMes(){
     <div><span class="meter">${meter}</span><div class="meter-cap num" style="margin-top:6px"><span>${ent?Math.round(sai/ent*100)+"% da renda usada":"Sem renda lançada"}</span><span>${items.length} lançamentos</span></div></div>
     <button class="ext-link" id="ext-open">Ver tudo que entrou e saiu<span aria-hidden="true">›</span></button>
   </section>
+  ${resumoHtml()}
   ${gastarHtml(items)}
   ${limitesHtml(items)}
   ${compCardHtml()}
@@ -1048,8 +1049,8 @@ function contasDoMes(ym){
   for(const c of S.config.cartoes){const xs=its.filter(i=>i.forma===c.id);const v=xs.reduce((a,i)=>a+i.valor,0);
     if(v>0)out.push({key:"card:"+c.id,nome:"Fatura "+c.nome.replace(/^Cart[aã]o\s+/i,""),valor:v,grupo:0,itens:xs,sub:xs.length+" "+(xs.length>1?"itens":"item")})}
   for(const i of its){if(S.config.cartoes.some(c=>c.id===i.forma))continue;if(!i.fixo&&!i.parcela)continue;
-    const f=formaById(i.forma),g=i.forma==="debito"?1:2;
-    out.push({key:i.key,nome:i.desc||"Sem descrição",valor:i.valor,grupo:g,sub:[i.parcela?"parcela "+i.parcela:null,f?f.nome:null].filter(Boolean).join(" · ")})}
+    const f=formaById(i.forma),g=i.forma==="debito"?1:2,fd=i.fixo?(S.config.fixos.find(x=>x.id===i.id)||{}).dia:null;
+    out.push({key:i.key,nome:i.desc||"Sem descrição",valor:i.valor,grupo:g,sub:[fd?"dia "+fd:null,i.parcela?"parcela "+i.parcela:null,f?f.nome:null].filter(Boolean).join(" · ")})}
   const pg=(S.config.pagos||{})[ym]||{};
   for(const o of out)o.pago=pg[o.key]||null;
   return out.sort((a,b)=>a.grupo-b.grupo||b.valor-a.valor);
@@ -1087,7 +1088,7 @@ function faturaSheet(cid){
   const tot=xs.reduce((a,i)=>a+i.valor,0);
   openSheet(`<h3>Fatura ${esc(c.nome.replace(/^Cart[aã]o\s+/i,""))} · ${esc(ymLabel(ym))}</h3>
     <div class="saldo num" style="margin:2px 0 6px">${money(tot)}</div>
-    <div class="list">${xs.map(i=>`<div class="row"><span class="dot" style="background:${catColor(i.cat)}"></span><span class="main"><span class="t">${esc(i.desc||"Sem descrição")}${i.parcela?`<span class="tag">${i.parcela}</span>`:""}${i.fixo?`<span class="tag fix">fixo</span>`:""}</span><span class="s">${esc((catById(i.cat)||{}).nome||"")}</span></span><span class="v num">${money(i.valor)}</span></div>`).join("")}</div>
+    <div class="list">${xs.map(i=>`<div class="row"><span class="dot" style="background:${catColor(i.cat)}"></span><span class="main"><span class="t">${esc(i.desc||"Sem descrição")}${i.parcela?`<span class="tag">${i.parcela}</span>`:""}${i.fixo?`<span class="tag fix">fixo</span>`:""}</span><span class="s">${esc([(catById(i.cat)||{}).nome||"",i.fixo&&(S.config.fixos.find(x=>x.id===i.id)||{}).dia?"dia "+(S.config.fixos.find(x=>x.id===i.id)||{}).dia:null].filter(Boolean).join(" · "))}</span></span><span class="v num">${money(i.valor)}</span></div>`).join("")}</div>
     <button class="btn ghost" id="fat-close" style="width:100%">Fechar</button>`,root=>{root.querySelector("#fat-close").addEventListener("click",closeSheet)});
 }
 /* ---------- formas separadas (ex.: VA): fora do gasto do mês ---------- */
@@ -1128,6 +1129,26 @@ function vaSheet(fid,ym){
   });
 }
 function vaNova(fid){const pf=S.lastForma,pc=S.lastCat;S.lastForma=fid;const c=S.config.categorias.find(c=>c.id==="comida");if(c)S.lastCat=c.id;lancForm(null);S.lastForma=pf;S.lastCat=pc}
+/* ---------- resumo de ontem + ritmo do mês ---------- */
+function resumoHtml(){
+  const hoje=today();if(S.month!==ymOf(hoje))return"";
+  const d0=new Date(hoje+"T12:00:00"),dy=new Date(d0);dy.setDate(dy.getDate()-1);
+  const ontem=dy.getFullYear()+"-"+pad(dy.getMonth()+1)+"-"+pad(dy.getDate());
+  const ls=S.lanc.filter(l=>l.tipo!=="receita"&&l.data===ontem);
+  const tOntem=ls.reduce((a,l)=>a+(+l.valor||0),0),byC={};
+  for(const l of ls){const k=l.cat||"outros";byC[k]=(byC[k]||0)+(+l.valor||0)}
+  const cats=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>esc((catById(k)||{nome:"Outros"}).nome)+" "+money(v)).join(" · ");
+  const teto=+S.config.teto||0,gasto=monthItems(S.month).filter(isDiaADia).reduce((a,i)=>a+i.valor,0);
+  const fim=new Date(d0.getFullYear(),d0.getMonth()+1,0).getDate(),dia=d0.getDate(),dias=fim-dia+1;
+  const resta=teto-gasto,porDia=dias>0?Math.floor(resta/dias):0,ideal=teto*(dia-1)/fim;
+  const st=!teto?"":gasto>teto?"over":gasto>ideal*1.1?"warn":"ok";
+  const msg=!teto?"":st==="over"?`Passou ${money(gasto-teto)} do teto`:st==="warn"?`Acima do ritmo: o ideal até ontem era ${money(Math.round(ideal))}`:"Dentro do ritmo";
+  const cor=st==="over"?"var(--neg)":st==="warn"?"var(--warn)":"var(--pos)";
+  return`<section class="block"><h2>Resumo · ${esc(dy.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit"}))}</h2><div class="list">
+    <div class="row"><span class="main"><span class="t">Ontem você gastou ${money(tOntem)}</span><span class="s" style="white-space:normal">${ls.length?cats:"Nenhum gasto lançado ontem"}</span></span></div>
+    ${teto?`<div class="row"><span class="main"><span class="t num">No mês: ${money(gasto)} de ${money(teto)}</span><span class="s" style="white-space:normal">${resta>0?`Resta ${money(resta)} para ${dias} ${dias>1?"dias":"dia"} (~${money(porDia)}/dia)`:"Teto do mês usado"} · <b style="color:${cor}">${esc(msg)}</b></span></span></div>`:""}
+  </div></section>`;
+}
 /* ---------- extrato do mês: tudo que entrou e saiu ---------- */
 function extratoSheet(){
   const ym=S.month,its=monthItems(ym),sum=a=>a.reduce((s,i)=>s+i.valor,0);
@@ -1663,7 +1684,7 @@ function renderFixos(){
   const tot=a=>a.reduce((s,f)=>s+(+f.valor||0),0);
   const row=f=>{const fo=formaById(f.forma),c=catById(f.cat);
     return`<button class="row" data-fixo="${esc(f.id)}"><span class="dot" style="background:${f.tipo==="receita"?"var(--pos)":catColor(f.cat)}"></span>
-    <span class="main"><span class="t">${esc(f.nome)}</span><span class="s">${esc([c&&f.tipo!=="receita"?c.nome:null,fo?fo.nome:null,f.desde?"desde "+ymShort(f.desde):null,f.ate?"até "+ymShort(f.ate):null].filter(Boolean).join(" · "))}</span></span>
+    <span class="main"><span class="t">${esc(f.nome)}</span><span class="s">${esc([c&&f.tipo!=="receita"?c.nome:null,fo?fo.nome:null,f.dia?"todo dia "+f.dia:null,f.desde?"desde "+ymShort(f.desde):null,f.ate?"até "+ymShort(f.ate):null].filter(Boolean).join(" · "))}</span></span>
     <span class="v num ${f.tipo==="receita"?"in":""}">${money(f.valor)}</span></button>`};
   return`<header class="monthbar"><h1><small>O que já está comprometido</small>Contas</h1></header>
   ${contasPagarHtml()}
@@ -1984,6 +2005,7 @@ function fixoForm(existing){
     <div class="x-meta"><label class="f">Vai para a meta (opcional)</label><div class="chips" id="x-meta" style="margin-top:6px">${chipsHtml(S.config.metas||[],st.meta,"meta",false)}</div><p class="note" style="margin:6px 0 0">Todo mês que este fixo passar, o valor entra sozinho na meta escolhida.</p></div>
     <div class="two"><label class="f">A partir de<input class="inp" type="month" id="x-desde" value="${esc(F.desde||"")}"></label>
       <label class="f">Até (opcional)<input class="inp" type="month" id="x-ate" value="${esc(F.ate||"")}"></label></div>
+    <label class="f">Dia da cobrança no mês (opcional)<input class="inp" id="x-dia" inputmode="numeric" placeholder="Ex.: 15" value="${esc(F.dia||"")}"></label>
     <div class="actions">${existing?`<button class="btn danger" id="x-del">Excluir</button>`:""}<button class="btn" id="x-save">Salvar</button></div>`,root=>{
     const $=s=>root.querySelector(s);
     const paint=()=>{root.querySelectorAll("#x-tipo button").forEach(b=>b.classList.toggle("on",b.dataset.v===st.tipo));$(".x-cat").hidden=st.tipo==="receita";$(".x-meta").hidden=st.tipo==="receita"};
@@ -1994,7 +2016,7 @@ function fixoForm(existing){
     $("#x-meta").addEventListener("click",e=>{const b=e.target.closest("[data-meta]");if(!b)return;st.meta=st.meta===b.dataset.meta?null:b.dataset.meta;root.querySelectorAll("#x-meta .chip").forEach(c=>c.classList.toggle("on",c.dataset.meta===st.meta))});
     $("#x-save").addEventListener("click",()=>{
       const nome=$("#x-nome").value.trim();if(!nome){$("#x-nome").focus();return}
-      const obj={...F,nome,valor:toCents($("#x-valor").value),tipo:st.tipo,cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,meta:st.tipo==="receita"?null:(st.meta||null),desde:$("#x-desde").value||null,ate:$("#x-ate").value||null};
+      const obj={...F,nome,valor:toCents($("#x-valor").value),tipo:st.tipo,cat:st.tipo==="receita"?null:st.cat,forma:st.forma||null,meta:st.tipo==="receita"?null:(st.meta||null),desde:$("#x-desde").value||null,ate:$("#x-ate").value||null,dia:Math.min(31,Math.max(0,parseInt($("#x-dia").value,10)||0))||null};
       const i=S.config.fixos.findIndex(x=>x.id===obj.id);
       S.config.fixos=i>=0?S.config.fixos.map(x=>x.id===obj.id?obj:x):[...S.config.fixos,obj];
       closeSheet();saveConfig();toast("Fixo salvo");backToCat();
