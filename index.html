@@ -296,7 +296,7 @@ h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute
 .cal-leg>i{width:16px;height:10px;border-radius:3px;background:color-mix(in srgb,var(--accent) calc(var(--a)*100%),var(--sunk));display:inline-block}
 .cal-leg-flag{display:inline-flex;align-items:center;gap:5px;margin-left:10px}
 .cal-leg-flag .cal-flag{position:static}
-.cal-d.dk .cal-n,.cal-d.dk .cal-v{color:var(--accent-ink)}
+.cal-d.cdk .cal-n,.cal-d.cdk .cal-v{color:var(--accent-ink)}
 .tag{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--sunk);color:var(--muted);margin-left:6px;vertical-align:1px}
 .tag.fix{background:var(--accent-soft);color:var(--accent)}
 .card-lim{background:var(--sunk);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
@@ -1619,7 +1619,7 @@ function calHtml(){
   let cells="";for(let i=0;i<ini;i++)cells+=`<span class="cal-x" aria-hidden="true"></span>`;
   for(let d=1;d<=nd;d++){const ds=ym+"-"+pad(d),v=porDia[ds]||0,fut=ds>hoje,acima=tetoDia&&(vistaDia[ds]||0)>tetoDia;
     const op=v?(0.14+0.66*Math.sqrt(v/max)).toFixed(2):0;
-    cells+=`<button class="cal-d${ds===hoje?" hoje":""}${fut?" fut":""}${v?" tem":""}${op>0.5?" dk":""}" data-dia="${ds}" aria-label="${d} de ${MESES[m-1]}: ${v?money(v):"sem gastos"}"${v?` style="--a:${op}"`:""}><span class="cal-n">${d}</span>${v?`<span class="cal-v num">${k(v)}</span>`:""}${acima?`<i class="cal-flag" title="Acima do teto diário"></i>`:""}</button>`}
+    cells+=`<button class="cal-d${ds===hoje?" hoje":""}${fut?" fut":""}${v?" tem":""}${op>0.5?" cdk":""}" data-dia="${ds}" aria-label="${d} de ${MESES[m-1]}: ${v?money(v):"sem gastos"}"${v?` style="--a:${op}"`:""}><span class="cal-n">${d}</span>${v?`<span class="cal-v num">${k(v)}</span>`:""}${acima?`<i class="cal-flag" title="Acima do teto diário"></i>`:""}</button>`}
   return`<section class="block"><h2>Gasto por dia</h2><div class="chart-card cal-card">
     <div class="cal-sum"><div><span>Total em compras</span><b class="num">${money(tot)}</b></div><div><span>Média por dia</span><b class="num">${ate?money(media):"—"}</b></div><div><span>Dia mais caro</span><b class="num">${top?(+top[0].slice(8,10))+"/"+pad(m):"—"}</b></div></div>
     <div class="cal-grid">${DIAS_SEM.map(x=>`<span class="cal-h">${x}</span>`).join("")}${cells}</div>
