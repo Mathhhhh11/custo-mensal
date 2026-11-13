@@ -412,7 +412,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:
 @media (prefers-reduced-motion:reduce){.voz-mic.on{animation:none;outline:3px solid var(--accent-soft)}}
 .voz-st{font-size:13px;color:var(--muted);line-height:1.4}
 .voz-st b{color:var(--ink)}
-body.mpc .dk{display:block;min-height:0}body.mpc .dk-main{padding:0 0 90px}body.mpc .dk-grid,body.mpc .dk-two,body.mpc .dk-left{display:flex;flex-direction:column;gap:12px}body.mpc .dk-g1{grid-template-columns:1fr;gap:12px}body.mpc .dk-big{font-size:34px}body.mpc .dk-top{flex-wrap:wrap;margin-bottom:12px;padding:8px 10px}body.mpc .dk-month h1{font-size:21px}body.mpc .dk-add{display:none}body.mpc .dk-leg{grid-template-columns:repeat(2,1fr)}body.mpc .dk-box{padding:14px}body.mpc .mcal{margin-top:12px}body.mpc .dk,body.mpc .dk-main,body.mpc .dk-grid>*,body.mpc .dk-left>*,body.mpc .dk-two>*,body.mpc .dk-g1>*{min-width:0;max-width:100%}body.mpc .dk-main{overflow-x:hidden}body.mpc .dk-box{width:100%;box-sizing:border-box}body.mpc .dk-pars{grid-template-columns:1fr}body.mpc .dk-tab th:nth-child(n+4),body.mpc .dk-tab td:nth-child(n+4){display:none}body.mpc .dk-tab{width:100%}
+body.mpc .dk{display:block;min-height:0}body.mpc .dk-main{padding:0 0 90px}body.mpc .dk-grid,body.mpc .dk-two,body.mpc .dk-left{display:flex;flex-direction:column;gap:12px}body.mpc .dk-g1{grid-template-columns:1fr;gap:12px}body.mpc .dk-big{font-size:34px}body.mpc .dk-top{flex-wrap:wrap;margin-bottom:12px;padding:8px 10px}body.mpc .dk-month h1{font-size:21px}body.mpc .dk-add{display:none}body.mpc .dk-leg{grid-template-columns:repeat(2,1fr)}body.mpc .dk-box{padding:14px}body.mpc .mcal{margin-top:12px}body.mpc .dk,body.mpc .dk-main,body.mpc .dk-grid>*,body.mpc .dk-left>*,body.mpc .dk-two>*,body.mpc .dk-g1>*{min-width:0;max-width:100%}body.mpc .dk-main{overflow-x:hidden}body.mpc .dk-box{width:100%;box-sizing:border-box}body.mpc .dk-pars{grid-template-columns:1fr}body.mpc .dk-tab th:nth-child(n+4),body.mpc .dk-tab td:nth-child(n+4){display:none}body.mpc .dk-tab{width:100%}[data-dkleg]{cursor:pointer;border-radius:8px;padding:4px;margin:-4px}[data-dkleg]:hover,[data-dkleg]:active{background:var(--sunk)}body.mpc .mtop{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}body.mpc .mtop .btn{width:100%;padding:12px 8px;font-size:14px}body.mpc .mcal{margin-top:0}body.mpc .mcomp:empty{display:none}body.mpc #mlanc-sec{scroll-margin-top:12px}
 body.desk .nav{display:none}
 body.desk .app{max-width:none;padding:0;display:block}
 .dk{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
@@ -1271,7 +1271,7 @@ function renderDesk(){
       <div class="dk-sub">Entradas ${money(ent)} · Investido ${money(inv)} · Sobra ${money(ent-tot-inv)}</div></div>
       <div class="dk-year"><small>Gasto por mês em ${y} · média ${money(media)}</small><div class="dk-bars">${barras}</div></div></div>
       <div class="dk-stack"><i style="flex:${fx};background:var(--c0)"></i><i style="flex:${par};background:var(--c1)"></i><i style="flex:${av};background:var(--free)"></i></div>
-      <div class="dk-leg"><div><span style="background:var(--c0)"></span>Fixos<b class="num">${money(fx)}</b><small>${P(fx)}% do mês</small></div><div><span style="background:var(--c1)"></span>Parcelas<b class="num">${money(par)}</b><small>${P(par)}% do mês</small></div><div><span style="background:var(--free)"></span>Avulsos<b class="num">${money(av)}</b><small>${P(av)}% do mês</small></div><div><span style="background:var(--pos)"></span>No cartão<b class="num">${money(noCard)}</b><small>${P(noCard)}% vai para faturas</small></div></div></section>
+      <div class="dk-leg"><div data-dkleg="fx"><span style="background:var(--c0)"></span>Fixos<b class="num">${money(fx)}</b><small>${P(fx)}% do mês</small></div><div data-dkleg="par"><span style="background:var(--c1)"></span>Parcelas<b class="num">${money(par)}</b><small>${P(par)}% do mês</small></div><div data-dkleg="av"><span style="background:var(--free)"></span>Avulsos<b class="num">${money(av)}</b><small>${P(av)}% do mês</small></div><div data-dkleg="card"><span style="background:var(--pos)"></span>No cartão<b class="num">${money(noCard)}</b><small>${P(noCard)}% vai para faturas</small></div></div></section>
     <div class="dk-two">    <section class="dk-box"><h3>Por categoria</h3><div class="dk-sub">Onde foi o dinheiro este mês</div>
       <div class="dk-stack sm">${cats.map(([k,v])=>`<i style="flex:${v};background:${catColor(k)}"></i>`).join("")}</div>
       <div class="dk-cats">${cats.map(([k,v])=>`<button data-catopen="${esc(k)}"><span class="dot" style="background:${catColor(k)}"></span><span class="n">${esc((catById(k)||{nome:"Outros"}).nome)}</span><small>${P(v)}%</small><b class="num">${money(v)}</b></button>`).join("")}</div></section>
@@ -1607,7 +1607,18 @@ function previsaoHtml(items){
 const DIAS_SEM=["D","S","T","Q","Q","S","S"];
 function gastoDoLanc(l){const n=Math.max(1,+l.parcelas||1);return n>1?parcelaValor(l.valor,n,0):l.valor}
 function comprasDoDia(d){return S.lanc.filter(l=>l.tipo!=="receita"&&l.data===d)}
-function renderMesPc(){let h=renderDesk().replace(deskSide(),"");const i=h.lastIndexOf("</main>");return h.slice(0,i)+`<div class="mcal">${calHtml()}</div>`+h.slice(i)}
+function renderMesPc(){let h=renderDesk().replace(deskSide(),"");const a=h.indexOf('<section class="dk-box dk-gasto"'),e=h.indexOf("</section>",a)+10;
+  h=h.slice(0,e)+`<div class="mcal">${calHtml()}</div><div class="mcomp">${typeof compCardHtml==="function"?compCardHtml():""}</div>`+h.slice(e);
+  h=h.replace('<div class="dk-grid">',`<div class="mtop"><button class="btn" data-mnew>+ Novo lançamento</button><button class="btn ghost" id="mlanc-ver">Lançamentos do mês</button></div><div class="dk-grid">`);
+  return h.replace('<section class="dk-box dk-wide"><div class="dk-h"><div><h3>Lançamentos','<section class="dk-box dk-wide" id="mlanc-sec"><div class="dk-h"><div><h3>Lançamentos')}
+function dkLegSheet(k){const ym=S.month,cards=S.config.cartoes.map(c=>c.id);
+  const f={fx:i=>i.fixo,par:i=>!!i.parcela,av:i=>!i.fixo&&!i.parcela,card:i=>cards.includes(i.forma)}[k];if(!f)return;
+  const xs=monthItems(ym).filter(i=>i.tipo!=="receita"&&i.cat!=="invest").filter(f).sort((a,b)=>b.valor-a.valor);
+  const T={fx:"Fixos",par:"Parcelas",av:"Avulsos",card:"No cartão"}[k],tot=xs.reduce((a,i)=>a+i.valor,0);
+  const nm=id=>{const c=S.config.cartoes.find(x=>x.id===id);if(c)return c.nome;const fo=formaById(id);return fo?fo.nome:""};
+  openSheet(`<h3>${T} · ${esc(ymLabel(ym))}</h3><div class="saldo num" style="margin:2px 0 6px">${money(tot)}</div><div class="note">${xs.length} ${xs.length===1?"item":"itens"}</div>
+    <div class="list">${xs.map(i=>`<div class="row"><span class="dot" style="background:${catColor(i.cat)}"></span><span class="main"><span class="t">${esc(i.desc||"Sem descrição")}${i.parcela?`<span class="tag">${i.parcela}</span>`:""}</span><span class="s">${esc([(catById(i.cat)||{}).nome||"",nm(i.forma),i.data?i.data.split("-").reverse().slice(0,2).join("/"):""].filter(Boolean).join(" · "))}</span></span><span class="v num">${money(i.valor)}</span></div>`).join("")||`<div class="empty">Nada neste mês</div>`}</div>
+    <button class="btn ghost" id="lg-close" style="width:100%">Fechar</button>`,root=>root.querySelector("#lg-close").addEventListener("click",closeSheet))}
 function calHtml(){
   const ym=S.month,[y,m]=ym.split("-").map(Number),nd=new Date(y,m,0).getDate(),ini=new Date(y,m-1,1).getDay();
   const hoje=today(),teto=+S.config.teto||0,tetoDia=teto?Math.round(teto/nd):0;
@@ -2220,6 +2231,9 @@ app.addEventListener("click",e=>{
   if(t.closest("#meta-edit")){metaEditSheet(curMeta());return}
   const dp=t.closest("[data-dep]");if(dp){const m=curMeta();const d=(m.depositos||[]).find(x=>x.id===dp.dataset.dep);if(d)depSheet(m,d);return}
   const co=t.closest("[data-catopen]");if(co){catSheet(co.dataset.catopen);return}
+  const lg=t.closest("[data-dkleg]");if(lg){dkLegSheet(lg.dataset.dkleg);return}
+  if(t.closest("[data-mnew]")){lancForm(null);return}
+  if(t.closest("#mlanc-ver")){const s=document.getElementById("mlanc-sec");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});return}
   const fl=t.closest("[data-filter]");if(fl){cardSheet(fl.dataset.filter);return}
   const op=t.closest("[data-open]");if(op){const[k,id]=op.dataset.open.split(/:(.+)/);
     if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
