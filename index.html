@@ -412,6 +412,7 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:
 @media (prefers-reduced-motion:reduce){.voz-mic.on{animation:none;outline:3px solid var(--accent-soft)}}
 .voz-st{font-size:13px;color:var(--muted);line-height:1.4}
 .voz-st b{color:var(--ink)}
+body.mpc .dk{display:block;min-height:0}body.mpc .dk-main{padding:0 0 90px}body.mpc .dk-grid,body.mpc .dk-two,body.mpc .dk-left{display:flex;flex-direction:column;gap:12px}body.mpc .dk-g1{grid-template-columns:1fr;gap:12px}body.mpc .dk-big{font-size:34px}body.mpc .dk-top{flex-wrap:wrap;margin-bottom:12px;padding:8px 10px}body.mpc .dk-month h1{font-size:21px}body.mpc .dk-add{display:none}body.mpc .dk-leg{grid-template-columns:repeat(2,1fr)}body.mpc .dk-box{padding:14px}body.mpc .mcal{margin-top:12px}body.mpc .dk,body.mpc .dk-main,body.mpc .dk-grid>*,body.mpc .dk-left>*,body.mpc .dk-two>*,body.mpc .dk-g1>*{min-width:0;max-width:100%}body.mpc .dk-main{overflow-x:hidden}body.mpc .dk-box{width:100%;box-sizing:border-box}body.mpc .dk-pars{grid-template-columns:1fr}body.mpc .dk-tab th:nth-child(n+4),body.mpc .dk-tab td:nth-child(n+4){display:none}body.mpc .dk-tab{width:100%}
 body.desk .nav{display:none}
 body.desk .app{max-width:none;padding:0;display:block}
 .dk{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
@@ -732,8 +733,8 @@ function monthItems(ym){
 const app=document.getElementById("app");
 function render(){
   document.querySelectorAll(".nav [data-view]").forEach(b=>{if(b.dataset.view===S.view)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
-  const dk=deskWas=isDesk();document.body.classList.toggle("desk",dk);
-  let h,full=false;if(S.view==="metas")h=renderMetas();else if(S.view==="fixos")h=renderFixos();else if(S.view==="ajustes")h=renderAjustes();else if(S.view==="painel")h=renderPainel();else{h=dk?renderDesk():renderMes();full=dk}
+  const dk=deskWas=isDesk();document.body.classList.toggle("desk",dk);document.body.classList.toggle("mpc",!dk&&!["metas","fixos","ajustes","painel"].includes(S.view));
+  let h,full=false;if(S.view==="metas")h=renderMetas();else if(S.view==="fixos")h=renderFixos();else if(S.view==="ajustes")h=renderAjustes();else if(S.view==="painel")h=renderPainel();else{h=dk?renderDesk():renderMesPc();full=dk}
   app.innerHTML=dk&&!full?`<div class="dk">${deskSide()}<main class="dk-main dk-other">${h}</main></div>`:h;
 }
 function statusText(){
@@ -1606,6 +1607,7 @@ function previsaoHtml(items){
 const DIAS_SEM=["D","S","T","Q","Q","S","S"];
 function gastoDoLanc(l){const n=Math.max(1,+l.parcelas||1);return n>1?parcelaValor(l.valor,n,0):l.valor}
 function comprasDoDia(d){return S.lanc.filter(l=>l.tipo!=="receita"&&l.data===d)}
+function renderMesPc(){let h=renderDesk().replace(deskSide(),"");const i=h.lastIndexOf("</main>");return h.slice(0,i)+`<div class="mcal">${calHtml()}</div>`+h.slice(i)}
 function calHtml(){
   const ym=S.month,[y,m]=ym.split("-").map(Number),nd=new Date(y,m,0).getDate(),ini=new Date(y,m-1,1).getDay();
   const hoje=today(),teto=+S.config.teto||0,tetoDia=teto?Math.round(teto/nd):0;
