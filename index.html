@@ -1251,11 +1251,11 @@ function renderDesk(){
   const dias=[...new Set(r.cs.map(c=>{const m=/dia (\d+)/.exec(c.sub||"");return m?+m[1]:null}).filter(Boolean))].sort((a,b)=>a-b);
   const ck='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   // cartões + previsão
-  const cardHtml=S.config.cartoes.map((c,ix)=>{const f=m=>monthItems(m).filter(i=>i.tipo!=="receita"&&i.forma===c.id).reduce((a,i)=>a+i.valor,0);
-    const n=monthItems(ym).filter(i=>i.tipo!=="receita"&&i.forma===c.id).length,prox=[1,2,3].map(k=>addM(ym,k));
+  const cardHtml=S.config.cartoes.map((c,ix)=>{const f=m=>c.id===COMP_ID?compMes(m).reduce((a,x)=>a+x.valor,0):monthItems(m).filter(i=>i.tipo!=="receita"&&i.forma===c.id).reduce((a,i)=>a+i.valor,0);
+    const n=c.id===COMP_ID?compMes(ym).length:monthItems(ym).filter(i=>i.tipo!=="receita"&&i.forma===c.id).length,prox=[1,2,3].map(k=>addM(ym,k));
     return`<div class="dk-cc"><button class="dk-card c${ix%3}" data-filter="${esc(c.id)}"><span class="dk-card-n">${esc(c.nome.replace(/^Cart[aã]o\s+/i,""))}</span><span class="dk-chip"></span>
       <span class="dk-card-b"><span><small>${esc(MES3[+ym.slice(5)-1].toUpperCase())}</small><b class="num">${money(f(ym))}</b></span><span><small>LANÇAMENTOS</small><b>${n}</b></span></span></button>
-      ${(()=>{const cur=ymOf(today()),lim=+c.limite||0;if(!lim)return"";let usado=f(cur);for(const l of S.lanc){if(l.tipo==="receita"||l.forma!==c.id)continue;const n=Math.max(1,+l.parcelas||1),k0=diffM(cur,l.comp||ymOf(l.data));for(let j=Math.max(0,k0+1);j<n;j++)usado+=parcelaValor(l.valor,n,j)}const disp=lim-usado;return`<div class="dk-lim"><div><small>Limite disponível</small><b class="num ${disp<0?"neg":""}">${money(disp)}</b></div><small>de ${money(lim)}</small><span class="dk-limbar"><i style="width:${Math.min(100,Math.max(0,usado/lim*100)).toFixed(1)}%"></i></span></div>`})()}<div class="dk-prox">${prox.map(m=>`<div><small>${esc(MES3[+m.slice(5)-1])}</small><b class="num">${money(f(m))}</b></div>`).join("")}</div></div>`}).join("");
+      ${(()=>{const cur=ymOf(today()),lim=+c.limite||0;if(!lim)return"";let usado=f(cur);for(const l of [...S.lanc,...(S.comp||[])]){if(l.tipo==="receita"||l.forma!==c.id)continue;const n=Math.max(1,+l.parcelas||1),k0=diffM(cur,l.comp||ymOf(l.data));for(let j=Math.max(0,k0+1);j<n;j++)usado+=parcelaValor(l.valor,n,j)}const disp=lim-usado;return`<div class="dk-lim"><div><small>Limite disponível</small><b class="num ${disp<0?"neg":""}">${money(disp)}</b></div><small>de ${money(lim)}</small><span class="dk-limbar"><i style="width:${Math.min(100,Math.max(0,usado/lim*100)).toFixed(1)}%"></i></span></div>`})()}<div class="dk-prox">${prox.map(m=>`<div><small>${esc(MES3[+m.slice(5)-1])}</small><b class="num">${money(f(m))}</b></div>`).join("")}</div></div>`}).join("");
   // parcelas em andamento
   const pars=S.lanc.filter(l=>l.tipo!=="receita"&&(+l.parcelas||1)>1).map(l=>{const n=+l.parcelas,k=diffM(ym,l.comp||ymOf(l.data));if(k<0||k>=n)return null;
     let falta=0;for(let j=k+1;j<n;j++)falta+=parcelaValor(l.valor,n,j);return{l,n,k,pv:parcelaValor(l.valor,n,k),falta}}).filter(Boolean).sort((a,b)=>b.pv-a.pv);
@@ -2236,7 +2236,7 @@ app.addEventListener("click",e=>{
   const lg=t.closest("[data-dkleg]");if(lg){dkLegSheet(lg.dataset.dkleg);return}
   if(t.closest("[data-mnew]")){lancForm(null);return}
   if(t.closest("#mlanc-ver")){const s=document.getElementById("mlanc-sec");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});return}
-  const fl=t.closest("[data-filter]");if(fl){cardSheet(fl.dataset.filter);return}
+  const fl=t.closest("[data-filter]");if(fl){if(fl.dataset.filter===COMP_ID){compSheet(S.month);return}cardSheet(fl.dataset.filter);return}
   const op=t.closest("[data-open]");if(op){const[k,id]=op.dataset.open.split(/:(.+)/);
     if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
   const fx=t.closest("[data-fixo]");if(fx){const f=S.config.fixos.find(x=>x.id===fx.dataset.fixo);if(f)fixoForm(f);return}
