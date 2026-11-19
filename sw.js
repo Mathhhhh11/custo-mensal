@@ -1,6 +1,6 @@
 // Custo Mensal — guarda o app no celular para abrir mesmo sem internet.
 // Ao publicar uma versão nova, aumente o número abaixo.
-const VERSAO = "cm-v2";
+const VERSAO = "cm-v3";
 const ARQUIVOS = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
