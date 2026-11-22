@@ -654,7 +654,7 @@ function buscaHtml(){
     ${n?`<div class="list">${rows.join("")}</div>`:`<div class="empty"><b>Nada encontrado</b>Tente outra palavra${S.buscaTodos?"":" ou veja em Todos os meses"}.</div>`}
     ${S.buscaTodos&&n?`<p class="note">Em "Todos os meses", compras parceladas aparecem uma vez, com o valor total.</p>`:""}</section>`;
 }
-const isDiaADia=i=>i.tipo!=="receita"&&!i.fixo&&!i.parcela;
+const isDiaADia=i=>i.tipo!=="receita"&&!i.fixo&&!i.parcela&&i.src!=="c";
 function tetoHtml(items){
   const teto=+S.config.teto||0;if(!teto)return"";
   const gasto=items.filter(isDiaADia).reduce((a,i)=>a+i.valor,0);
@@ -722,6 +722,7 @@ function monthItems(ym){
     if(off<0||off>=n)continue;
     out.push({key:"l:"+l.id,src:"l",id:l.id,desc:l.desc,valor:parcelaValor(l.valor,n,off),tipo:l.tipo||"despesa",cat:l.cat,forma:l.forma,data:l.data,parcela:n>1?(off+1)+"/"+n:null});
   }
+  {const cp=S.config.compart||{};if(ym>=(cp.desde||"0000-00"))for(const x of compMes(ym)){const l=x.l;out.push({key:"c:"+l.id,src:"c",id:l.id,desc:(l.desc||"Sem descrição")+" (½ XP)",valor:Math.round(x.valor/2),tipo:"despesa",cat:l.cat,forma:COMP_ID,data:l.data,parcela:x.parc})}}
   for(const f of S.config.fixos){
     if(f.desde&&ym<f.desde)continue; if(f.ate&&ym>f.ate)continue;
     const ov=f.excecoes&&Object.prototype.hasOwnProperty.call(f.excecoes,ym)?f.excecoes[ym]:undefined;
@@ -2238,7 +2239,7 @@ app.addEventListener("click",e=>{
   if(t.closest("#mlanc-ver")){const s=document.getElementById("mlanc-sec");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});return}
   const fl=t.closest("[data-filter]");if(fl){if(fl.dataset.filter===COMP_ID){compSheet(S.month);return}cardSheet(fl.dataset.filter);return}
   const op=t.closest("[data-open]");if(op){const[k,id]=op.dataset.open.split(/:(.+)/);
-    if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
+    if(k==="l"){const l=S.lanc.find(x=>x.id===id);if(l)lancForm(l)}else if(k==="c"){compSheet(S.month)}else{const f=S.config.fixos.find(x=>x.id===id);if(f)fixoMonthSheet(f)}return}
   const fx=t.closest("[data-fixo]");if(fx){const f=S.config.fixos.find(x=>x.id===fx.dataset.fixo);if(f)fixoForm(f);return}
   if(t.closest("#addfixo")){fixoForm(null);return}
   if(t.closest("#addcard")){S.config.cartoes=[...S.config.cartoes,{id:"c"+uid(),nome:"Novo cartão",fechamento:0}];saveConfig();return}
