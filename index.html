@@ -416,6 +416,7 @@ body.mpc .dk{display:block;min-height:0}body.mpc .dk-main{padding:0 0 90px}body.
 .dk-io{display:flex;flex-direction:column;margin-top:6px}.dk-io-r{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:14px;width:100%;text-align:left}button.dk-io-r{cursor:pointer}.dk-io-r span{color:var(--muted)}.dk-io-r b.neg{color:var(--neg)}.dk-io-r b.ok{color:var(--pos)}
 .dk-lim{display:grid;grid-template-columns:1fr auto;align-items:end;gap:4px 8px;background:var(--sunk);border-radius:8px;padding:8px 10px}.dk-lim div{display:flex;flex-direction:column}.dk-lim small{font-size:11px;color:var(--muted)}.dk-lim b{font-size:15px}.dk-lim b.neg{color:var(--neg)}.dk-limbar{grid-column:1/-1;height:6px;border-radius:4px;background:var(--line);overflow:hidden}.dk-limbar i{display:block;height:100%;background:var(--accent)}
 .dk-hero{gap:8px;margin-bottom:16px}.hero-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hero-row small{display:block;font-size:12.5px;color:var(--muted);font-weight:600}.hero-row b{font-family:var(--display);font-size:32px;font-weight:800;letter-spacing:-.01em}.hero-row b.ok{color:var(--pos)}.hero-row b.neg{color:var(--neg)}.hero-bar{display:block;height:10px;border-radius:6px;background:var(--sunk);overflow:hidden}.hero-bar i{display:block;height:100%;background:var(--accent);border-radius:6px}.hero-sub{font-size:13px;color:var(--muted)}.hero-sub b{color:var(--ink)}body.mpc .hero-row b{font-size:24px}body.mpc .dk-hero{margin-bottom:12px}
+.dk-mpick{position:relative;display:flex;align-items:center;gap:4px;cursor:pointer;border-radius:10px;padding:2px 6px}.dk-mpick:hover{background:var(--sunk)}.dk-mpick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;border:0;padding:0}.dk-caret{color:var(--muted);font-size:14px}.dk-hoje{width:auto!important;padding:0 10px;font-size:13px;font-weight:700}
 body.desk .nav{display:none}
 body.desk .app{max-width:none;padding:0;display:block}
 .dk{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
@@ -1267,7 +1268,7 @@ function renderDesk(){
   const lTot=lans.reduce((a,i)=>a+i.valor,0);
   const st=typeof statusText==="function"?statusText():{cls:"",t:S.mode==="db"?"Salvo":""};
   return`<div class="dk">${deskSide()}<main class="dk-main">
-  <header class="dk-top"><div class="dk-month"><button class="iconbtn" id="prev" aria-label="Mês anterior">‹</button><h1>${esc(MESES[+ym.slice(5)-1])} <span>${ym.slice(0,4)}</span></h1><button class="iconbtn" id="next" aria-label="Próximo mês">›</button></div>
+  <header class="dk-top"><div class="dk-month"><button class="iconbtn" id="prev" aria-label="Mês anterior">‹</button><label class="dk-mpick" title="Escolher mês"><h1>${esc(MESES[+ym.slice(5)-1])} <span>${ym.slice(0,4)}</span></h1><span class="dk-caret">▾</span><input type="month" id="dk-mpick" value="${ym}" aria-label="Escolher mês e ano"></label>${ym!==ymOf(today())?`<button class="iconbtn dk-hoje" id="dk-hoje" title="Voltar para o mês atual">Hoje</button>`:""}<button class="iconbtn" id="next" aria-label="Próximo mês">›</button></div>
     <div class="dk-acts"><span class="status ${st.cls}" id="syncpill"><span class="sdot"></span><span id="synctext">${esc(st.t)}</span></span><button class="btn dk-add" id="dk-add">+ Adicionar gasto</button></div></header>
   ${(()=>{const now=today(),cur=ym===ymOf(now),fim=new Date(+ym.slice(0,4),+ym.slice(5),0).getDate(),dRest=cur?Math.max(1,fim-+now.slice(8,10)+1):0,resta=ent-tot-inv,pct=ent?tot/ent*100:0,teto=+S.config.teto||0,dd=items.filter(isDiaADia).reduce((a,i)=>a+i.valor,0);return`<section class="dk-box dk-hero"><div class="hero-row"><div><small>Gastei no mês</small><b class="num">${money(tot)}</b></div><div><small>Ainda tenho</small><b class="num ${resta<0?"neg":"ok"}">${money(resta)}</b></div></div><span class="hero-bar"><i style="width:${Math.min(100,pct).toFixed(1)}%"></i></span><div class="hero-sub">${Math.round(pct)}% de ${money(ent)} que entraram${cur&&resta>0?` · ~${money(Math.floor(resta/dRest))}/dia nos ${dRest} dias que faltam`:""}</div>${teto?`<div class="hero-sub">Dia a dia: <b>${money(dd)}</b> de ${money(teto)} · ${dd<=teto?"resta "+money(teto-dd):"passou "+money(dd-teto)}</div>`:""}</section>`})()}<div class="dk-grid"><div class="dk-left">
     <section class="dk-box dk-gasto"><div class="dk-g1"><div><h3>Gasto do mês</h3><div class="dk-big num">${money(tot)}</div>
@@ -2235,6 +2236,8 @@ app.addEventListener("click",e=>{
   if(t.closest("#meta-edit")){metaEditSheet(curMeta());return}
   const dp=t.closest("[data-dep]");if(dp){const m=curMeta();const d=(m.depositos||[]).find(x=>x.id===dp.dataset.dep);if(d)depSheet(m,d);return}
   const co=t.closest("[data-catopen]");if(co){catSheet(co.dataset.catopen);return}
+  const mp=t.closest(".dk-mpick");if(mp){try{mp.querySelector("input").showPicker()}catch(_){}return}
+  if(t.closest("#dk-hoje")){S.month=ymOf(today());render();return}
   const lg=t.closest("[data-dkleg]");if(lg){dkLegSheet(lg.dataset.dkleg);return}
   if(t.closest("[data-mnew]")){lancForm(null);return}
   if(t.closest("#mlanc-ver")){const s=document.getElementById("mlanc-sec");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});return}
@@ -2265,6 +2268,7 @@ app.addEventListener("input",e=>{
 });
 app.addEventListener("change",e=>{
   const t=e.target,d=t.dataset;
+  if(t.id==="dk-mpick"){if(/^\d{4}-\d{2}$/.test(t.value)){S.month=t.value;render()}return}
   if(d.cardN){S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardN?{...c,nome:t.value.trim()||c.nome}:c);saveConfig()}
   else if(d.cardF){const v=Math.max(0,Math.min(31,parseInt(t.value,10)||0));S.config.cartoes=S.config.cartoes.map(c=>c.id===d.cardF?{...c,fechamento:v}:c);saveConfig()}
   else if(d.teto){S.config.teto=toCents(t.value);saveConfig()}
